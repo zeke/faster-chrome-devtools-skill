@@ -2,6 +2,8 @@
 
 Google maintains an [official MCP server](https://zeke.sikelianos.com/driving-chrome-with-an-agent/) that lets you remotely control your logged-in Chrome browser window using an AI agent. This is incredibly useful, but it's also slow by default. This skill exists to make those MCP interactions faster and safer.
 
+![HIC LIMAX NAVIGAT LENTE](images/chrome-snail-09.jpg)
+
 ## Install
 
 ```sh
