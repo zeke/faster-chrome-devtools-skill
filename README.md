@@ -26,15 +26,15 @@ npx skills add zeke/faster-chrome-devtools-skill
 
 ## How it was made
 
-This skill was built by analyzing real Chrome DevTools MCP usage patterns across hundreds of OpenCode sessions stored in a local SQLite database (~770MB of conversation history).
+This skill was built by mining OpenCode's local session history — a SQLite database of every tool call, timing, and response across many months of real browser automation work.
 
 The analysis covered:
 
-- 653 `chrome-devtools_*` tool calls across 20+ sessions
-- Per-tool timing distributions (avg, min, max) measured from actual call timestamps
+- Hundreds of `chrome-devtools_*` tool calls across many sessions
+- Per-tool timing distributions measured from actual call timestamps
 - Tool transition patterns — what tool tends to follow what, and at what latency
 - `wait_for` timeout failures and their root causes
-- A real session that was permanently killed by a 7MB screenshot exceeding Claude's 5MB API limit
+- A real session that was permanently killed by an oversized screenshot exceeding Claude's API limit
 - The source code of `chrome-devtools-mcp` to understand how `wait_for`, `navigate_page`, and screenshot size-gating actually work internally
 
 ## License
