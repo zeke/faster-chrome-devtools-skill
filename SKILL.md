@@ -29,11 +29,12 @@ Measured from real session data (medians, at default viewport):
 
 ## Screenshot safety
 
-Screenshots can permanently kill a session. The rules:
+PNG is lossless and uncompressed — a full-page PNG of a typical 1280px-wide page can easily reach 3–7MB. JPEG and WebP use lossy compression; at quality 75 a JPEG is typically 90%+ smaller than the equivalent PNG with no perceptible quality loss for the purposes of page inspection.
 
-- The MCP silently saves screenshots >= 2MB to a temp file and returns only a path. The model never sees the image.
-- If a screenshot is attached inline (< 2MB raw) but exceeds 5MB as base64, Claude's API rejects it and the session becomes unrecoverable.
-- Full-page screenshots (`fullPage: true`) are especially dangerous — a typical full-page PNG can exceed 5MB.
+This matters because of two size thresholds in the pipeline:
+
+- 2MB (MCP threshold): screenshots >= 2MB are saved to a temp file and the model receives only a file path. The model never sees the image. This happens silently with no warning.
+- 5MB (Claude API limit): if an inline screenshot exceeds 5MB as base64, the API rejects the entire request and the session becomes permanently unrecoverable — compaction doesn't help because it replays the same images.
 
 Always use JPEG or WebP with a quality setting when the screenshot will be shown to the model:
 
@@ -50,6 +51,8 @@ Only use `fullPage: true` when you genuinely need the full page, and never witho
 If you get back a file path instead of an image, the screenshot exceeded 2MB. Retry with JPEG at quality 60.
 
 ## Snapshot over screenshot
+
+`take_snapshot` returns the page's [accessibility tree](https://developer.mozilla.org/en-US/docs/Glossary/Accessibility_tree) — element roles, names, and UIDs you can pass to other tools. `take_screenshot` renders a [pixel image via Puppeteer](https://pptr.dev/api/puppeteer.page.screenshot).
 
 Use `take_snapshot` when you need to know what's on the page. Use `take_screenshot` only when visual appearance (images, CSS rendering, canvas) matters.
 
