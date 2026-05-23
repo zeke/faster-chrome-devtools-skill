@@ -2,11 +2,12 @@
 name: faster-chrome-devtools-skill
 description: >
   Performance and safety guide for the Chrome DevTools MCP. Load this skill
-  whenever you are about to use any chrome-devtools_* tool — take_snapshot,
-  take_screenshot, navigate_page, wait_for, click, fill, new_page, list_pages,
-  select_page, or evaluate_script. Covers screenshot size limits that can
-  permanently kill sessions, navigation timeout pitfalls, and the fastest
-  patterns for common browser automation tasks.
+  whenever you are about to use any chrome-devtools_* or chrome-devtools-cf_*
+  tool — take_snapshot, take_screenshot, navigate_page, wait_for, click, fill,
+  new_page, list_pages, select_page, or evaluate_script. Covers screenshot size
+  limits that can permanently kill sessions, navigation timeout pitfalls, the
+  fastest patterns for common browser automation tasks, and the quirks of
+  driving Cloudflare Browser Rendering (chrome-devtools-cf) as a remote target.
 ---
 
 # Chrome DevTools MCP: faster patterns
@@ -180,3 +181,47 @@ wait_for({ text: ["Order confirmed"], timeout: 5000 })    // ~55ms
 | `new_page()` when tab is already open     | `list_pages()` then `select_page()`                                |
 | Long `wait_for` for async external events | `evaluate_script` polling a JS condition                           |
 | Clicking into React components via a11y   | `evaluate_script` with direct DOM manipulation                     |
+
+## Cloudflare Browser Rendering (chrome-devtools-cf)
+
+The `chrome-devtools-cf_*` tools use the same `chrome-devtools-mcp` package as the local server, but point at a Chromium instance running on [Cloudflare Browser Rendering](https://developers.cloudflare.com/browser-run/cdp/mcp-clients/) over a CDP WebSocket. Same tool surface, different runtime. Same patterns above apply, with the caveats below.
+
+When to prefer the remote (Cloudflare) variant:
+
+- The local Chrome is busy with the user's real session and you don't want to interrupt it.
+- You need a clean, anonymous browser with no logged-in cookies (the local autoConnect server inherits the user's session, which is sometimes exactly what you don't want).
+- You're running in CI, on a server, or anywhere without a local Chrome.
+- You want geolocation, userAgent, or viewport emulation without touching the user's real browser.
+
+When to prefer the local variant:
+
+- You need access to the user's existing logged-in session (banking, internal tools, paywalled sites).
+- You're debugging something the user is looking at right now.
+- Latency matters — local CDP round-trips beat the remote ones.
+
+Known quirks observed driving chrome-devtools-cf:
+
+- `resize_page` fails with `Browser.setContentsSize wasn't found`. Use `emulate({ viewport: "1280x800x1" })` instead. Every subsequent tool response will echo the emulated viewport, which is noisy but harmless.
+- Default viewport is small (780x493). Always `emulate` a real viewport early in the session.
+- `navigator.clipboard.readText()` inside `evaluate_script` hangs and returns `MCP error -32001: Request timed out` (no permission prompt UI is reachable). The session recovers on the next call, but you've burned a timeout. Read clipboard state another way (e.g., inspect the source element directly), or skip the check.
+- The remote browser identifies as `HeadlessChrome/126` on `X11; Linux x86_64`. Sites that gate on UA or behave differently for headless Chrome will behave differently here than they do locally.
+- `emulate({ geolocation: "lat x lon" })` works but is not echoed in the response. Confirm with `navigator.geolocation.getCurrentPosition` from `evaluate_script` if you actually need it.
+- `lighthouse_audit` works and produces full HTML + JSON reports. Useful for ad-hoc audits without setting up a separate Lighthouse install.
+
+Setup notes (for reference, not for the agent to do unprompted):
+
+- Config lives in the MCP client (OpenCode, Claude Desktop, Cursor, etc.) as a `chrome-devtools-mcp` entry with `--wsEndpoint=wss://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/browser-rendering/devtools/browser?keep_alive=600000` and `--wsHeaders` carrying a `Browser Rendering - Edit` API token.
+- `keep_alive` defaults to 600000ms (10 min) of idle before the session is recycled. Long-running automations should bump this.
+
+Sanity-check pattern for a fresh remote session:
+
+```
+list_pages()                                    // confirm about:blank starting point
+emulate({ viewport: "1280x800x1" })             // resize_page does not work
+navigate_page({ url, timeout: 15000 })          // standard timeout
+take_snapshot()                                 // verify load
+evaluate_script({ function: () => ({
+  ua: navigator.userAgent,
+  viewport: { w: innerWidth, h: innerHeight }
+})})                                            // confirm headless identity
+```

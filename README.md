@@ -26,6 +26,8 @@ npx skills add zeke/faster-chrome-devtools-skill
 
 - The canonical sub-100ms interaction loop: `click` → `wait_for` → `fill` → `wait_for`
 
+- Driving [Cloudflare Browser Rendering](https://developers.cloudflare.com/browser-run/cdp/mcp-clients/) as a remote target: the same `chrome-devtools-mcp` package pointed at a CDP WebSocket gives you a clean, anonymous Chromium in the cloud. The skill documents when to prefer it over your local Chrome and the quirks to know (`resize_page` is unsupported, default viewport is tiny, `navigator.clipboard` hangs, headless UA may be detected).
+
 ## How it was made
 
 This skill was built by mining OpenCode's local session history — a SQLite database of every tool call, timing, and response across many months of real browser automation work.
