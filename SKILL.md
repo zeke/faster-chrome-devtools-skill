@@ -2,32 +2,38 @@
 name: faster-chrome-devtools-skill
 description: >
   Performance and safety guide for the Chrome DevTools MCP. Load this skill
-  whenever you are about to use any chrome-devtools_* or chrome-devtools-cf_*
-  tool — take_snapshot, take_screenshot, navigate_page, wait_for, click, fill,
-  new_page, list_pages, select_page, or evaluate_script. Covers screenshot size
-  limits that can permanently kill sessions, navigation timeout pitfalls, the
-  fastest patterns for common browser automation tasks, Browser Run Quick
-  Actions from Workers, and the quirks of driving Cloudflare Browser Rendering
-  (chrome-devtools-cf) as a remote target.
+  whenever you are about to use any chrome-devtools_* tool: take_snapshot,
+  take_screenshot, navigate_page, wait_for, click, fill, new_page, list_pages,
+  select_page, or evaluate_script. The exact tool prefix depends on your MCP
+  server config key and may differ from chrome-devtools_*. Covers screenshot
+  size limits that can permanently kill sessions, navigation timeout pitfalls,
+  recovering when the browser will not connect, the fastest patterns for common
+  browser automation tasks, Browser Run Quick Actions from Workers, and the
+  quirks of driving a remote Cloudflare Browser Rendering target.
 ---
 
 # Chrome DevTools MCP: faster patterns
+
+## A note on tool names
+
+Tool name prefixes come from the MCP server's config key, so they vary by setup. A default single-instance `chrome-devtools-mcp` install produces `chrome-devtools_*` (e.g. `chrome-devtools_take_snapshot`). If you run a second instance, such as one pointed at a remote Cloudflare Browser Rendering target, it gets whatever key you assign. This guide uses bare tool names (`take_snapshot`, `navigate_page`, etc.); apply them regardless of prefix.
 
 ## Tool speed reference
 
 Measured from real session data (medians, at default viewport):
 
-| Tool                    | Avg     | Notes                                            |
+| Tool                    | Median  | Notes                                            |
 | ----------------------- | ------- | ------------------------------------------------ |
-| `take_snapshot`         | 80ms    | Fastest page inspection. Prefer over screenshot. |
-| `list_console_messages` | 3ms     | Cheap                                            |
-| `evaluate_script`       | 227ms   | Fast; use as escape hatch for React components   |
-| `fill`                  | 358ms   |                                                  |
-| `click`                 | 696ms   |                                                  |
-| `take_screenshot`       | 1,118ms | Slow; only use when visual appearance matters    |
-| `navigate_page`         | 2,672ms | Highly variable; always set `timeout`            |
-| `list_pages`            | 2,737ms | High variance; avoid in tight loops              |
-| `new_page`              | 3,506ms | Expensive; reuse existing tabs when possible     |
+| `take_snapshot`         | 34ms    | Fastest page inspection. Prefer over screenshot. |
+| `list_console_messages` | 73ms    | Cheap                                            |
+| `wait_for`              | 97ms    | Resolves instantly when text is already present  |
+| `fill`                  | 245ms   |                                                  |
+| `evaluate_script`       | 301ms   | Fast; use as escape hatch for React components   |
+| `click`                 | 304ms   |                                                  |
+| `take_screenshot`       | 722ms   | Slower; only use when visual appearance matters  |
+| `navigate_page`         | 1,219ms | Highly variable; always set `timeout`            |
+| `new_page`              | 2,380ms | Expensive; reuse existing tabs when possible     |
+| `list_pages`            | 3,432ms | Slowest common tool; avoid in tight loops        |
 
 ## Screenshot safety
 
@@ -91,7 +97,7 @@ Recommended timeouts by context:
 
 ## Reuse tabs
 
-`new_page` averages 3,500ms. If a relevant tab is already open, use it.
+`new_page` runs ~2,400ms (median) and `list_pages` is slower still. If a relevant tab is already open, use it.
 
 ```
 // Check first
@@ -101,6 +107,17 @@ select_page({ pageId: <id> })
 // Only open a new tab if the URL isn't already open
 new_page({ url: "https://example.com" })
 ```
+
+## When the browser won't connect
+
+The most common failure with the local server is `Not connected`, or a repeated `MCP error -32001: Request timed out`, on `list_pages`, `navigate_page`, or `new_page`. It means the MCP server can't reach a Chrome instance. Either Chrome isn't running with remote debugging enabled, or the MCP hasn't been granted browser access yet.
+
+Retrying won't fix it. After one retry, stop and recover:
+
+1. Ask the user to enable remote debugging (in Chrome, `chrome://inspect/#remote-debugging`) and to grant the MCP browser access if prompted, then retry once.
+2. If a clean or anonymous browser is acceptable, fall back to a remote Cloudflare Browser Rendering instance if one is configured.
+
+Don't burn several tool calls looping on the same error: it almost always needs the user to flip an access switch, not another attempt.
 
 ## How wait_for works
 
@@ -229,9 +246,9 @@ Decision rule:
 - Need browser automation inside a Worker that cannot be expressed as a Quick Action: use Browser Run with Puppeteer, Playwright, or CDP.
 - Never add a `fetch()` call to the Browser Run REST API from a Worker just to call Quick Actions. Use the binding.
 
-## Cloudflare Browser Rendering (chrome-devtools-cf)
+## Cloudflare Browser Rendering (remote target)
 
-The `chrome-devtools-cf_*` tools use the same `chrome-devtools-mcp` package as the local server, but point at a Chromium instance running on [Cloudflare Browser Rendering](https://developers.cloudflare.com/browser-run/cdp/mcp-clients/) over a CDP WebSocket. Same tool surface, different runtime. Same patterns above apply, with the caveats below.
+A second `chrome-devtools-mcp` instance can point at a Chromium instance running on [Cloudflare Browser Rendering](https://developers.cloudflare.com/browser-run/cdp/mcp-clients/) over a CDP WebSocket instead of a local Chrome. Same package, same tool surface, different runtime; its tool prefix is whatever config key you give it. Same patterns above apply, with the caveats below.
 
 When to prefer the remote (Cloudflare) variant:
 
@@ -246,9 +263,9 @@ When to prefer the local variant:
 - You're debugging something the user is looking at right now.
 - Latency matters — local CDP round-trips beat the remote ones.
 
-Known quirks observed driving chrome-devtools-cf:
+Known quirks observed driving the remote target:
 
-- `resize_page` fails with `Browser.setContentsSize wasn't found`. Use `emulate({ viewport: "1280x800x1" })` instead. Every subsequent tool response will echo the emulated viewport, which is noisy but harmless.
+- `resize_page` fails with `Browser.setContentsSize wasn't found`. The call reports status `completed` with the error buried in its output, so the success status is misleading: check the output, don't trust the status. Use `emulate({ viewport: "1280x800x1" })` instead. Every subsequent tool response will echo the emulated viewport, which is noisy but harmless.
 - Default viewport is small (780x493). Always `emulate` a real viewport early in the session.
 - `navigator.clipboard.readText()` inside `evaluate_script` hangs and returns `MCP error -32001: Request timed out` (no permission prompt UI is reachable). The session recovers on the next call, but you've burned a timeout. Read clipboard state another way (e.g., inspect the source element directly), or skip the check.
 - The remote browser identifies as `HeadlessChrome/126` on `X11; Linux x86_64`. Sites that gate on UA or behave differently for headless Chrome will behave differently here than they do locally.
