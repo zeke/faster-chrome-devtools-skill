@@ -50,7 +50,7 @@ Launch a fresh anonymous Chrome instance on a throwaway profile, open https://ne
 Run in the cloud on Cloudflare Browser Rendering:
 
 ```text
-Using Cloudflare Browser Rendering, open https://example.com in the cloud and take a screenshot. If the Browser Rendering credentials aren't set up yet, configure the required environment variables to authenticate first.
+Using Cloudflare Browser Rendering, open https://blog.cloudflare.com, read the page, and give me the five most recent post titles with their links as a markdown table. If the Browser Rendering credentials aren't set up yet, configure the required environment variables to authenticate first.
 ```
 
 ## Design
