@@ -1,14 +1,14 @@
 {
-  "name": "faster-chrome-devtools-skill",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "Dependency-free direct Chrome DevTools Protocol CLI and agent skill",
-  "scripts": {
-    "lint": "script/lint",
-    "test": "script/test"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.0"
-  }
+	"name": "faster-chrome-devtools-skill",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Dependency-free direct Chrome DevTools Protocol CLI and agent skill",
+	"scripts": {
+		"lint": "script/lint",
+		"test": "script/test"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.0"
+	}
 }
