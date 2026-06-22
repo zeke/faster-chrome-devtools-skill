@@ -45,7 +45,7 @@ node scripts/cdp.mjs list
 
 ## Capabilities
 
-- List and reuse existing tabs
+- List, open, and reuse tabs
 - Read compact accessibility snapshots with stable element references
 - Click and fill by accessibility reference or CSS selector
 - Navigate with explicit timeouts

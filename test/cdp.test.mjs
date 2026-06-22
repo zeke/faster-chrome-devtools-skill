@@ -72,6 +72,33 @@ test("formatSnapshot includes stable backend DOM refs", () => {
 	);
 });
 
+test("formatSnapshot does not indent through hidden nodes", () => {
+	const output = formatSnapshot([
+		{
+			nodeId: "1",
+			childIds: ["2"],
+			role: { value: "RootWebArea" },
+			name: { value: "Root" },
+			backendDOMNodeId: 1,
+		},
+		{
+			nodeId: "2",
+			parentId: "1",
+			childIds: ["3"],
+			role: { value: "generic" },
+			name: { value: "" },
+		},
+		{
+			nodeId: "3",
+			parentId: "2",
+			role: { value: "button" },
+			name: { value: "Go" },
+			backendDOMNodeId: 9,
+		},
+	]);
+	assert.equal(output, '[RootWebArea ref=1] "Root"\n  [button ref=9] "Go"');
+});
+
 test("parseScreenshotArgs defaults to a compressed format", () => {
 	const parsed = parseScreenshotArgs(["/tmp/example.jpg"]);
 	assert.equal(parsed.path, "/tmp/example.jpg");

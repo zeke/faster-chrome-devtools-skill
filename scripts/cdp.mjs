@@ -301,7 +301,8 @@ function formatSnapshot(nodes) {
 	const visit = (node, depth) => {
 		if (!node || visited.has(node.nodeId)) return;
 		visited.add(node.nodeId);
-		if (axVisible(node)) {
+		const visible = axVisible(node);
+		if (visible) {
 			const role = node.role?.value || "unknown";
 			const ref = node.backendDOMNodeId ? ` ref=${node.backendDOMNodeId}` : "";
 			const name = node.name?.value
@@ -316,7 +317,8 @@ function formatSnapshot(nodes) {
 		for (const child of childrenByParent.get(node.nodeId) || []) {
 			if (!childIds.includes(child.nodeId)) childIds.push(child.nodeId);
 		}
-		for (const childId of childIds) visit(byId.get(childId), depth + 1);
+		const childDepth = visible ? depth + 1 : depth;
+		for (const childId of childIds) visit(byId.get(childId), childDepth);
 	};
 	for (const node of nodes.filter(
 		(node) => !node.parentId || !byId.has(node.parentId),
@@ -793,6 +795,11 @@ async function runDaemon(id) {
 	async function execute(command, args) {
 		if (command === "list") return formatPages(await pages(cdp));
 		if (command === "stop") return { stop: true, output: "" };
+		if (command === "open" || command === "new") {
+			const url = args[0] || "about:blank";
+			const { targetId } = await cdp.send("Target.createTarget", { url });
+			return `Opened ${targetId}\n${url}`;
+		}
 		const target = resolveTarget(args[0], await pages(cdp));
 		const sid = await sessionFor(target.targetId);
 		const rest = args.slice(1);
@@ -856,8 +863,19 @@ async function runDaemon(id) {
 			return `Filled element with ${JSON.stringify(value)}`;
 		}
 		if (command === "type") {
-			await cdp.send("Input.insertText", { text: rest.join(" ") }, sid);
-			return `Typed ${rest.join(" ").length} characters`;
+			const text = rest.join(" ");
+			const focusedTag = await evaluate(
+				cdp,
+				sid,
+				`(() => { const el = document.activeElement; return !el || el === document.body || el === document.documentElement ? "" : el.tagName; })()`,
+			);
+			if (!focusedTag) {
+				throw new Error(
+					"Nothing is focused, so typed text would be discarded. Click or focus an element first, or use fill.",
+				);
+			}
+			await cdp.send("Input.insertText", { text }, sid);
+			return `Typed ${text.length} characters into <${focusedTag.toLowerCase()}>`;
 		}
 		if (command === "press") {
 			const key = keyDefinition(rest[0]);
@@ -1078,6 +1096,7 @@ CDP_HEADERS. With no endpoint, the CLI discovers a local Chrome instance.
 
 Commands:
   list
+  open [url]
   snapshot <target>
   screenshot <target> [file] [--format jpeg|webp|png] [--quality 75] [--full-page]
   navigate <target> <url> [timeout-ms]
@@ -1115,6 +1134,8 @@ async function main() {
 	const [command, ...commandArgs] = args;
 	const supported = new Set([
 		"list",
+		"open",
+		"new",
 		"snapshot",
 		"snap",
 		"screenshot",

@@ -6,6 +6,7 @@ description: >
   clicking, form input, console errors, failed requests, or JavaScript
   evaluation. Uses a dependency-free Node.js CLI over WebSocket; Chrome
   DevTools MCP, Puppeteer, and Playwright are not required.
+compatibility: Requires Node.js 22+
 ---
 
 # Faster Chrome DevTools: direct CDP
@@ -126,6 +127,7 @@ or selector is already present.
 
 ```text
 list
+open [url]
 snapshot <target>
 screenshot <target> [file] [--format jpeg|webp|png] [--quality 75] [--full-page]
 navigate <target> <url> [timeout-ms]
@@ -260,6 +262,31 @@ events; `fill` already performs that sequence for ordinary inputs and textareas.
 The same CLI can connect directly to a Cloudflare Browser Rendering CDP
 WebSocket. Pass the endpoint and authorization headers supplied by that service.
 No MCP process is involved.
+
+### Setup
+
+Set the two environment variables the CLI reads, built from your account ID and
+an API token, then run any command:
+
+```sh
+export CF_ACCOUNT_ID=<account-id>
+export CF_API_TOKEN=<token>   # needs the Browser Rendering: Edit permission
+export CDP_WS_ENDPOINT="wss://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/devtools/browser?keep_alive=600000"
+export CDP_HEADERS="{\"Authorization\":\"Bearer $CF_API_TOKEN\"}"
+node <skill-directory>/scripts/cdp.mjs list
+```
+
+`CDP_WS_ENDPOINT` and `CDP_HEADERS` are the only variables the CLI consumes;
+`CF_ACCOUNT_ID` and `CF_API_TOKEN` are just inputs used to build them. Export
+them per shell session, or source them from a local `.env` (the dependency-free
+CLI does not read `.env` itself), rather than passing `--headers` on the command
+line where the token is recorded in shell history and process arguments.
+
+To create the token, open the Cloudflare dashboard at Profile > API Tokens
+(`https://dash.cloudflare.com/profile/api-tokens`), choose Create Token, pick the
+Browser Rendering template if offered or a custom token with the
+Browser Rendering: Edit permission scoped to your account, and copy the secret
+once. Your account ID is shown on the account home page.
 
 Prefer a remote browser when you need a clean anonymous session, CI execution,
 or isolation from the user's real browser. Prefer local Chrome when you need the
