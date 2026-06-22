@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
 	mkdtempSync,
 	readdirSync,
@@ -225,8 +225,11 @@ test("CLI connects directly, lists targets, and reuses its daemon", async () => 
 	);
 	await assert.rejects(runCli(["stop"]), (error) => {
 		assert.match(error.stderr, /Multiple CDP daemons are running/);
-		assert.match(error.stderr, /1111111111111111  WebSocket ws:\/\/one\.test/);
-		assert.match(error.stderr, /2222222222222222  HTTP https:\/\/two\.test/);
+		assert.match(
+			error.stderr,
+			/1111111111111111 {2}WebSocket ws:\/\/one\.test/,
+		);
+		assert.match(error.stderr, /2222222222222222 {2}HTTP https:\/\/two\.test/);
 		return true;
 	});
 	const selectedStop = await runCli(["stop", "--id", "1111111111111111"]);

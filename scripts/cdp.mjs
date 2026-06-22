@@ -1,19 +1,20 @@
 #!/usr/bin/env node
+
 // Dependency-free Chrome DevTools Protocol CLI for Node.js 22+.
 
+import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
 	existsSync,
 	mkdirSync,
-	readFileSync,
 	readdirSync,
+	readFileSync,
 	unlinkSync,
 	writeFileSync,
 } from "node:fs";
+import net from "node:net";
 import { homedir, platform, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { spawn } from "node:child_process";
-import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { connectWebSocket } from "./lib/websocket.mjs";
 
