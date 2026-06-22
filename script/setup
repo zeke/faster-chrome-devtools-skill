@@ -1,0 +1,6 @@
+#!/bin/sh
+# script/setup: install dev dependencies (lint/format tooling only).
+# The CLI itself has no runtime dependencies and runs on Node.js built-ins.
+set -e
+cd "$(dirname "$0")/.."
+npm ci
