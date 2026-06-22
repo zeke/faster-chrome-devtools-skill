@@ -33,10 +33,24 @@ debugging in Chrome at `chrome://inspect/#remote-debugging`.
 
 ## Try it
 
-Once installed, paste a prompt like this into your coding agent:
+Once installed, paste one of these prompts into your coding agent.
+
+Drive your existing logged-in Chrome:
 
 ```text
-Using my local Chrome, open https://news.ycombinator.com, take a screenshot, and list the top five story titles from the page.
+Using my logged-in Chrome, open https://github.com/notifications, snapshot the page, and summarize what needs my attention.
+```
+
+Use a clean, anonymous local Chromium with no logins:
+
+```text
+Launch a fresh anonymous Chrome instance on a throwaway profile, open https://news.ycombinator.com, take a screenshot, and list the top five story titles.
+```
+
+Run in the cloud on Cloudflare Browser Rendering:
+
+```text
+Using Cloudflare Browser Rendering, open https://example.com in the cloud and take a screenshot. If the Browser Rendering credentials aren't set up yet, configure the required environment variables to authenticate first.
 ```
 
 ## Design
