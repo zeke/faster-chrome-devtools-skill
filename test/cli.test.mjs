@@ -141,6 +141,8 @@ before(async () => {
 					};
 				} else if (request.method === "DOM.getBoxModel") {
 					result = { model: { border: [10, 20, 30, 20, 30, 40, 10, 40] } };
+				} else if (request.method === "Runtime.evaluate") {
+					result = { result: { value: "" } };
 				}
 				const response = { id: request.id, result };
 				if (request.sessionId) response.sessionId = request.sessionId;
@@ -257,6 +259,18 @@ test("CLI connects directly, lists targets, and reuses its daemon", async () => 
 	await runCli(["--ws-endpoint", endpoint, "list"]);
 	const explicitStop = await runCli(["--ws-endpoint", endpoint, "stop"]);
 	assert.match(explicitStop.stdout, /^Stopped [a-f0-9]{16}/);
+});
+
+test("type reports failure when nothing is focused", async () => {
+	await assert.rejects(
+		runCli(["--ws-endpoint", endpoint, "type", "ABCDEF01", "hello"]),
+		(error) => {
+			assert.match(error.stderr, /Nothing is focused/);
+			return true;
+		},
+	);
+	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
+	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
 });
 
 test("HTTP-specific stop does not rediscover an unavailable endpoint", async () => {

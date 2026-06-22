@@ -856,8 +856,19 @@ async function runDaemon(id) {
 			return `Filled element with ${JSON.stringify(value)}`;
 		}
 		if (command === "type") {
-			await cdp.send("Input.insertText", { text: rest.join(" ") }, sid);
-			return `Typed ${rest.join(" ").length} characters`;
+			const text = rest.join(" ");
+			const focusedTag = await evaluate(
+				cdp,
+				sid,
+				`(() => { const el = document.activeElement; return !el || el === document.body || el === document.documentElement ? "" : el.tagName; })()`,
+			);
+			if (!focusedTag) {
+				throw new Error(
+					"Nothing is focused, so typed text would be discarded. Click or focus an element first, or use fill.",
+				);
+			}
+			await cdp.send("Input.insertText", { text }, sid);
+			return `Typed ${text.length} characters into <${focusedTag.toLowerCase()}>`;
 		}
 		if (command === "press") {
 			const key = keyDefinition(rest[0]);
