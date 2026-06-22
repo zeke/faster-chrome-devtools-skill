@@ -793,6 +793,11 @@ async function runDaemon(id) {
 	async function execute(command, args) {
 		if (command === "list") return formatPages(await pages(cdp));
 		if (command === "stop") return { stop: true, output: "" };
+		if (command === "open" || command === "new") {
+			const url = args[0] || "about:blank";
+			const { targetId } = await cdp.send("Target.createTarget", { url });
+			return `Opened ${targetId}\n${url}`;
+		}
 		const target = resolveTarget(args[0], await pages(cdp));
 		const sid = await sessionFor(target.targetId);
 		const rest = args.slice(1);
@@ -1089,6 +1094,7 @@ CDP_HEADERS. With no endpoint, the CLI discovers a local Chrome instance.
 
 Commands:
   list
+  open [url]
   snapshot <target>
   screenshot <target> [file] [--format jpeg|webp|png] [--quality 75] [--full-page]
   navigate <target> <url> [timeout-ms]
@@ -1126,6 +1132,8 @@ async function main() {
 	const [command, ...commandArgs] = args;
 	const supported = new Set([
 		"list",
+		"open",
+		"new",
 		"snapshot",
 		"snap",
 		"screenshot",

@@ -127,6 +127,7 @@ or selector is already present.
 
 ```text
 list
+open [url]
 snapshot <target>
 screenshot <target> [file] [--format jpeg|webp|png] [--quality 75] [--full-page]
 navigate <target> <url> [timeout-ms]

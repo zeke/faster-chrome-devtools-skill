@@ -143,6 +143,8 @@ before(async () => {
 					result = { model: { border: [10, 20, 30, 20, 30, 40, 10, 40] } };
 				} else if (request.method === "Runtime.evaluate") {
 					result = { result: { value: "" } };
+				} else if (request.method === "Target.createTarget") {
+					result = { targetId: "FEDCBA9876543210" };
 				}
 				const response = { id: request.id, result };
 				if (request.sessionId) response.sessionId = request.sessionId;
@@ -259,6 +261,20 @@ test("CLI connects directly, lists targets, and reuses its daemon", async () => 
 	await runCli(["--ws-endpoint", endpoint, "list"]);
 	const explicitStop = await runCli(["--ws-endpoint", endpoint, "stop"]);
 	assert.match(explicitStop.stdout, /^Stopped [a-f0-9]{16}/);
+});
+
+test("open creates a new tab without resolving a target", async () => {
+	const opened = await runCli([
+		"--ws-endpoint",
+		endpoint,
+		"open",
+		"https://opened.test/",
+	]);
+	assert.match(opened.stdout, /Opened FEDCBA9876543210/);
+	assert.match(opened.stdout, /https:\/\/opened\.test\//);
+	assert.ok(seenMethods.includes("Target.createTarget"));
+	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
+	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
 });
 
 test("type reports failure when nothing is focused", async () => {
