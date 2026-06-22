@@ -1,25 +1,51 @@
 # faster-chrome-devtools-skill
 
-A dependency-free agent skill and command-line tool for controlling Chrome
-directly through the Chrome DevTools Protocol (CDP).
+An agent skill and command-line tool for controlling Chrome directly through the
+Chrome DevTools Protocol (CDP).
 
-It uses a WebSocket connection from Node.js to Chrome. You do **not** need to
-install Chrome DevTools MCP, Puppeteer, Playwright, or any npm packages.
+It uses a WebSocket connection from Node.js to Chrome, so you do not need Chrome
+DevTools MCP, Puppeteer, or Playwright.
 
 ![HIC LIMAX NAVIGAT LENTE](images/chrome-snail-09.jpg)
 
 ## Install
 
 ```sh
-npx skills add zeke/faster-chrome-devtools-skill
+npx skills add zeke/faster-chrome-devtools-skill --global --all --yes
 ```
 
 Node.js 22 or later is required. For local browser access, enable remote
 debugging in Chrome at `chrome://inspect/#remote-debugging`.
 
+## Capabilities
+
+- List, open, and reuse tabs
+- Read compact accessibility snapshots with stable element references
+- Click and fill by accessibility reference or CSS selector
+- Navigate with explicit timeouts
+- Wait for text or selectors without arbitrary sleeps
+- Type into focused cross-origin frames using native CDP input
+- Capture compressed JPEG/WebP screenshots by default
+- Inspect console messages and failed network loads
+- Evaluate JavaScript or invoke any raw CDP method
+- Connect to authenticated remote browser endpoints
+- Keep the connection alive in a lightweight background daemon
+
+Run `node scripts/cdp.mjs --help` for the complete command reference. Agent usage
+patterns, screenshot safety, debugging guidance, and remote-browser notes live in
+[`SKILL.md`](SKILL.md).
+
 ## Try it
 
-From this repository:
+Once installed, ask your coding agent to drive Chrome. Paste a prompt like this
+into your agent:
+
+```text
+Take a screenshot of https://example.com and describe what is on the page.
+```
+
+The agent loads this skill and runs the bundled CLI for you. You can also run the
+CLI directly:
 
 ```sh
 node scripts/cdp.mjs list
@@ -42,24 +68,6 @@ export CDP_WS_ENDPOINT='wss://example.test/devtools/browser/...'
 export CDP_HEADERS='{"Authorization":"Bearer ..."}'
 node scripts/cdp.mjs list
 ```
-
-## Capabilities
-
-- List, open, and reuse tabs
-- Read compact accessibility snapshots with stable element references
-- Click and fill by accessibility reference or CSS selector
-- Navigate with explicit timeouts
-- Wait for text or selectors without arbitrary sleeps
-- Type into focused cross-origin frames using native CDP input
-- Capture compressed JPEG/WebP screenshots by default
-- Inspect console messages and failed network loads
-- Evaluate JavaScript or invoke any raw CDP method
-- Connect to authenticated remote browser endpoints
-- Keep the connection alive in a lightweight background daemon
-
-Run `node scripts/cdp.mjs --help` for the complete command reference. Agent usage
-patterns, screenshot safety, debugging guidance, and remote-browser notes live in
-[`SKILL.md`](SKILL.md).
 
 ## Design
 
