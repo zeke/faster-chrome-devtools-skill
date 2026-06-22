@@ -23,11 +23,21 @@ config.
 - Before committing an edit, re-read the diff for anything that only makes sense
   on the author's machine, and generalize or omit it.
 
+## Dev tooling
+
+Biome is the linter and formatter, declared as the only `devDependency`. It is
+development tooling only: the CLI runtime must keep importing nothing beyond
+Node.js built-ins, and skill users never run `npm install`. Run `script/setup`
+once to install it, then `script/lint` before committing. Lint and formatting
+follow Biome's recommended defaults (`biome.json`); match them rather than
+hand-styling.
+
 ## Tests
 
-Run `node --test` plus `node --check` on both CLI modules after changing the
-implementation. Tests must not require Chrome, a network service, or package
-installation.
+Run `script/test` (which runs `node --test`) plus `node --check` on both CLI
+modules after changing the implementation. Tests must not require Chrome, a
+network service, or package installation, and run on Node 22, 24, and latest in
+CI.
 
 ## Keeping this file current
 

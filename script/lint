@@ -1,0 +1,5 @@
+#!/bin/sh
+# script/lint: run Biome (format + lint + import sorting) in CI mode.
+set -e
+cd "$(dirname "$0")/.."
+npx --no-install biome ci .

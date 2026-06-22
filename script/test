@@ -1,0 +1,5 @@
+#!/bin/sh
+# script/test: run the test suite with the built-in Node.js test runner.
+set -e
+cd "$(dirname "$0")/.."
+node --test
