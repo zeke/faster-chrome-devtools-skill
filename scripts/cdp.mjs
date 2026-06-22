@@ -301,7 +301,8 @@ function formatSnapshot(nodes) {
 	const visit = (node, depth) => {
 		if (!node || visited.has(node.nodeId)) return;
 		visited.add(node.nodeId);
-		if (axVisible(node)) {
+		const visible = axVisible(node);
+		if (visible) {
 			const role = node.role?.value || "unknown";
 			const ref = node.backendDOMNodeId ? ` ref=${node.backendDOMNodeId}` : "";
 			const name = node.name?.value
@@ -316,7 +317,8 @@ function formatSnapshot(nodes) {
 		for (const child of childrenByParent.get(node.nodeId) || []) {
 			if (!childIds.includes(child.nodeId)) childIds.push(child.nodeId);
 		}
-		for (const childId of childIds) visit(byId.get(childId), depth + 1);
+		const childDepth = visible ? depth + 1 : depth;
+		for (const childId of childIds) visit(byId.get(childId), childDepth);
 	};
 	for (const node of nodes.filter(
 		(node) => !node.parentId || !byId.has(node.parentId),
