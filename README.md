@@ -1,10 +1,9 @@
 # faster-chrome-devtools-skill
 
-An agent skill and command-line tool for controlling Chrome directly through the
+An [agent skill](https://agentskills.io) and command-line tool for controlling Chrome directly through the
 Chrome DevTools Protocol (CDP).
 
-It uses a WebSocket connection from Node.js to Chrome, so you do not need Chrome
-DevTools MCP, Puppeteer, or Playwright.
+Works with Claude Code, OpenCode, Codex, Pi, or any coding agent that supports the Agent Skills protocol.
 
 ![HIC LIMAX NAVIGAT LENTE](images/chrome-snail-09.jpg)
 
@@ -24,33 +23,36 @@ DevTools MCP, Puppeteer, or Playwright.
 
 ## Install
 
+Run this command to install the skill globally for all your installed agents:
+
 ```sh
 npx skills add zeke/faster-chrome-devtools-skill --global --all --yes
 ```
 
-Node.js 22 or later is required. For local browser access, enable remote
-debugging in Chrome at `chrome://inspect/#remote-debugging`.
+This skill includes a dependency-free Node.js script that uses a WebSocket connection to Chrome, so **you will need Node.js installed**, but you **do not need** Chrome DevTools MCP, Puppeteer, or Playwright.
 
 ## Try it
 
-Once installed, paste one of these prompts into your coding agent.
+Once installed, you can invoke the skill by pasting one of these prompts into your coding agent.
 
-Drive your existing logged-in Chrome:
+**🔑 Option 1: Drive your existing logged-in Chrome.**
+
+For this to work, you'll need to enable remote debugging in Chrome at `chrome://inspect/#remote-debugging`.
 
 ```text
 Using my logged-in Chrome, open https://github.com/notifications, snapshot the page, and summarize what needs my attention.
 ```
 
-Use a clean, anonymous local Chromium with no logins:
+**🕵️‍♀️ Option 2: Use a clean, anonymous local Chromium with no logins.**
 
 ```text
 Launch a fresh anonymous Chrome instance on a throwaway profile, open https://news.ycombinator.com, take a screenshot, and list the top five story titles.
 ```
 
-Run in the cloud on Cloudflare Browser Rendering:
+**⛅️ Option 3: Run in the cloud on Cloudflare [Browser Run](https://developers.cloudflare.com/browser-run/).**
 
 ```text
-Using Cloudflare Browser Rendering, open https://blog.cloudflare.com, read the page, and give me the five most recent post titles with their links as a markdown table. If the Browser Rendering credentials aren't set up yet, configure the required environment variables to authenticate first.
+Using Cloudflare Browser Run, open https://blog.cloudflare.com, read the page, and give me the five most recent post titles with their links as a markdown table. If the Browser Rendering credentials aren't set up yet, configure the required environment variables to authenticate first.
 ```
 
 ## Design
@@ -72,13 +74,7 @@ rediscover the browser.
 
 ## Development
 
-```sh
-node --test
-node --check scripts/cdp.mjs
-node --check scripts/lib/websocket.mjs
-```
-
-The test suite has no external dependencies and does not require Chrome.
+See [AGENTS.md](AGENTS.md)
 
 ## License
 

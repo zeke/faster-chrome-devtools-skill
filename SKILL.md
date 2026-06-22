@@ -329,3 +329,5 @@ If an environment already exposes Chrome DevTools MCP tools, they can still be
 used. The same operating principles apply: snapshot before screenshot, reuse
 tabs, set navigation timeouts, and wait for state transitions. MCP is a
 compatibility path, not a requirement for this skill.
+
+For instructions on using MCP as an alternative to the CLI, refer to this blog post: https://github.com/zeke/zeke.sikelianos.com/blob/abb5b6b1d3c1f1a9beeb76d652f8de6dcda92b05/content/browsers-in-the-cloud/index.md
