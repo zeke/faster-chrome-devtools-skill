@@ -1,47 +1,12 @@
 # faster-chrome-devtools-skill
 
-A dependency-free agent skill and command-line tool for controlling Chrome
-directly through the Chrome DevTools Protocol (CDP).
+An agent skill and command-line tool for controlling Chrome directly through the
+Chrome DevTools Protocol (CDP).
 
-It uses a WebSocket connection from Node.js to Chrome. You do **not** need to
-install Chrome DevTools MCP, Puppeteer, Playwright, or any npm packages.
+It uses a WebSocket connection from Node.js to Chrome, so you do not need Chrome
+DevTools MCP, Puppeteer, or Playwright.
 
 ![HIC LIMAX NAVIGAT LENTE](images/chrome-snail-09.jpg)
-
-## Install
-
-```sh
-npx skills add zeke/faster-chrome-devtools-skill
-```
-
-Node.js 22 or later is required. For local browser access, enable remote
-debugging in Chrome at `chrome://inspect/#remote-debugging`.
-
-## Try it
-
-From this repository:
-
-```sh
-node scripts/cdp.mjs list
-node scripts/cdp.mjs snapshot <target>
-node scripts/cdp.mjs screenshot <target> /tmp/page.jpg
-```
-
-The CLI automatically discovers Chrome on macOS, Windows, and common Linux
-installations. Explicit local or remote endpoints are also supported:
-
-```sh
-node scripts/cdp.mjs --http-endpoint http://127.0.0.1:9222 list
-node scripts/cdp.mjs --ws-endpoint 'wss://example.test/devtools/browser/...' list
-```
-
-Authenticated endpoints can receive arbitrary upgrade headers:
-
-```sh
-export CDP_WS_ENDPOINT='wss://example.test/devtools/browser/...'
-export CDP_HEADERS='{"Authorization":"Bearer ..."}'
-node scripts/cdp.mjs list
-```
 
 ## Capabilities
 
@@ -57,9 +22,36 @@ node scripts/cdp.mjs list
 - Connect to authenticated remote browser endpoints
 - Keep the connection alive in a lightweight background daemon
 
-Run `node scripts/cdp.mjs --help` for the complete command reference. Agent usage
-patterns, screenshot safety, debugging guidance, and remote-browser notes live in
-[`SKILL.md`](SKILL.md).
+## Install
+
+```sh
+npx skills add zeke/faster-chrome-devtools-skill --global --all --yes
+```
+
+Node.js 22 or later is required. For local browser access, enable remote
+debugging in Chrome at `chrome://inspect/#remote-debugging`.
+
+## Try it
+
+Once installed, paste one of these prompts into your coding agent.
+
+Drive your existing logged-in Chrome:
+
+```text
+Using my logged-in Chrome, open https://github.com/notifications, snapshot the page, and summarize what needs my attention.
+```
+
+Use a clean, anonymous local Chromium with no logins:
+
+```text
+Launch a fresh anonymous Chrome instance on a throwaway profile, open https://news.ycombinator.com, take a screenshot, and list the top five story titles.
+```
+
+Run in the cloud on Cloudflare Browser Rendering:
+
+```text
+Using Cloudflare Browser Rendering, open https://blog.cloudflare.com, read the page, and give me the five most recent post titles with their links as a markdown table. If the Browser Rendering credentials aren't set up yet, configure the required environment variables to authenticate first.
+```
 
 ## Design
 

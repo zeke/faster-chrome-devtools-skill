@@ -1,11 +1,15 @@
 ---
 name: faster-chrome-devtools-skill
 description: >
-  Inspect, debug, and interact with Chrome directly through the DevTools
-  Protocol. Load this skill for browser inspection, screenshots, navigation,
-  clicking, form input, console errors, failed requests, or JavaScript
-  evaluation. Uses a dependency-free Node.js CLI over WebSocket; Chrome
-  DevTools MCP, Puppeteer, and Playwright are not required.
+  Inspect, debug, and automate Chrome directly through the Chrome DevTools
+  Protocol (CDP). Use this skill whenever a task needs a real web browser: open
+  a URL, navigate pages, take a screenshot of a web page, read the DOM or
+  accessibility tree, click buttons, fill and submit forms, type text, wait for
+  elements, scrape page content, evaluate JavaScript on a page, or check console
+  errors and failed network requests. Works against the user's local Chrome or a
+  remote Cloudflare Browser Rendering endpoint over WebSocket. Relevant to
+  browser automation, web scraping, page screenshots, end-to-end UI checks, and
+  DevTools inspection. No Chrome DevTools MCP, Puppeteer, or Playwright required.
 compatibility: Requires Node.js 22+
 ---
 
@@ -29,8 +33,9 @@ Obtain the user's approval before inspecting or interacting with their browser.
 Ask them to enable remote debugging at `chrome://inspect/#remote-debugging` if it
 is not already enabled. Chrome may also show an **Allow debugging** prompt.
 
-For anonymous automation, CI, or a remote browser, pass an explicit endpoint
-instead of connecting to the user's Chrome.
+For a clean session with no logged-in state, launch a separate anonymous Chrome
+locally (see Anonymous local Chrome below) or connect to a remote browser,
+instead of using the user's Chrome.
 
 ## Connection
 
@@ -69,6 +74,27 @@ export CDP_WS_ENDPOINT='wss://...'
 export CDP_HEADERS='{"Authorization":"Bearer ..."}'
 node <skill-directory>/scripts/cdp.mjs list
 ```
+
+### Anonymous local Chrome
+
+To use a clean instance with no logged-in state instead of the user's browser,
+launch a separate Chrome with remote debugging on a throwaway profile, then
+connect to that port. A non-default `--user-data-dir` is required (Chrome 136+
+refuses the debugging port on the default profile) and keeps the instance
+isolated from the user's session:
+
+```sh
+nohup "$CHROME" --remote-debugging-port=9333 --user-data-dir="$(mktemp -d)" \
+  --no-first-run --no-default-browser-check about:blank >/dev/null 2>&1 &
+node <skill-directory>/scripts/cdp.mjs --http-endpoint http://127.0.0.1:9333 list
+```
+
+`$CHROME` is the Chrome or Chromium binary, for example
+`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` on macOS or
+`google-chrome` on Linux. Pick a free port if 9333 is taken. If the browser
+exits as soon as the launching command returns, start it detached instead (on
+macOS: `open -na "Google Chrome" --args --remote-debugging-port=9333
+--user-data-dir=<dir> about:blank`).
 
 A background daemon keeps one browser connection alive for 20 minutes after the
 last command. This avoids repeated connection setup and repeated Chrome approval
