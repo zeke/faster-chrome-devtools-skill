@@ -55,6 +55,9 @@ Launch a fresh anonymous Chrome instance on a throwaway profile, open https://ne
 Using Cloudflare Browser Run, open https://blog.cloudflare.com, read the page, and give me the five most recent post titles with their links as a markdown table. If the Browser Rendering credentials aren't set up yet, configure the required environment variables to authenticate first.
 ```
 
+The skill's Browser Run setup uses `lab=true` by default so Chrome beta features
+such as WebMCP are available when the remote browser supports them.
+
 ## Design
 
 The CLI is implemented entirely with Node.js built-ins. `scripts/lib/websocket.mjs`

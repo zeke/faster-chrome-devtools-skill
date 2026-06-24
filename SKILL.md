@@ -283,11 +283,11 @@ Try a stable CSS selector, `evaluate`, or focus with `click` and then use `type`
 Some React controls require their native setter and synthetic `input`/`change`
 events; `fill` already performs that sequence for ordinary inputs and textareas.
 
-## Remote Cloudflare Browser Rendering
+## Remote Cloudflare Browser Run
 
-The same CLI can connect directly to a Cloudflare Browser Rendering CDP
-WebSocket. Pass the endpoint and authorization headers supplied by that service.
-No MCP process is involved.
+The same CLI can connect directly to a Cloudflare Browser Run CDP WebSocket.
+Pass the endpoint and authorization headers supplied by that service. No MCP
+process is involved.
 
 ### Setup
 
@@ -297,10 +297,15 @@ an API token, then run any command:
 ```sh
 export CF_ACCOUNT_ID=<account-id>
 export CF_API_TOKEN=<token>   # needs the Browser Rendering: Edit permission
-export CDP_WS_ENDPOINT="wss://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/devtools/browser?keep_alive=600000"
+export CDP_WS_ENDPOINT="wss://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/devtools/browser?keep_alive=600000&lab=true"
 export CDP_HEADERS="{\"Authorization\":\"Bearer $CF_API_TOKEN\"}"
 node <skill-directory>/scripts/cdp.mjs list
 ```
+
+`lab=true` selects Browser Run's experimental Chrome beta pool. Keep it on by
+default when using Browser Run so beta browser features, including WebMCP, are
+available. Remove `lab=true` only when a stable Chrome pool is more important
+than beta feature access, such as production workloads.
 
 `CDP_WS_ENDPOINT` and `CDP_HEADERS` are the only variables the CLI consumes;
 `CF_ACCOUNT_ID` and `CF_API_TOKEN` are just inputs used to build them. Export
@@ -313,6 +318,32 @@ To create the token, open the Cloudflare dashboard at Profile > API Tokens
 Browser Rendering template if offered or a custom token with the
 Browser Rendering: Edit permission scoped to your account, and copy the secret
 once. Your account ID is shown on the account home page.
+
+### WebMCP and beta browser features
+
+Browser Run lab sessions expose Chrome beta features. WebMCP-enabled sites can
+publish structured tools through `navigator.modelContextTesting`, which can be
+faster and less fragile than screenshot, click, and type loops.
+
+After navigating to a page, check whether it exposes WebMCP tools:
+
+```sh
+node <skill-directory>/scripts/cdp.mjs evaluate <target> \
+  'navigator.modelContextTesting?.listTools?.() ?? []'
+```
+
+When a relevant tool exists, prefer it over DOM interaction and pass parameters
+as JSON:
+
+```sh
+node <skill-directory>/scripts/cdp.mjs evaluate <target> \
+  'await navigator.modelContextTesting.executeTool("tool_name", JSON.stringify({}))'
+```
+
+Re-list tools after navigation or a tool call because available tools can change
+with page state. Fall back to normal CDP interaction when no relevant WebMCP
+tool exists. Some tools can pause for human confirmation before completing
+sensitive actions.
 
 Prefer a remote browser when you need a clean anonymous session, CI execution,
 or isolation from the user's real browser. Prefer local Chrome when you need the
