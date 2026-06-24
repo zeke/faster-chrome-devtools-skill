@@ -295,12 +295,20 @@ Set the two environment variables the CLI reads, built from your account ID and
 an API token, then run any command:
 
 ```sh
-export CF_ACCOUNT_ID=<account-id>
-export CF_API_TOKEN=<token>   # needs the Browser Rendering: Edit permission
-export CDP_WS_ENDPOINT="wss://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/browser-rendering/devtools/browser?keep_alive=600000&lab=true"
-export CDP_HEADERS="{\"Authorization\":\"Bearer $CF_API_TOKEN\"}"
+export CLOUDFLARE_ACCOUNT_ID=<account-id>
+export CLOUDFLARE_API_TOKEN=<token>   # needs Browser Rendering: Edit
+export CDP_WS_ENDPOINT="wss://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/browser-rendering/devtools/browser?keep_alive=600000&lab=true"
+export CDP_HEADERS="{\"Authorization\":\"Bearer $CLOUDFLARE_API_TOKEN\"}"
 node <skill-directory>/scripts/cdp.mjs list
 ```
+
+When the user asks to use Cloudflare Browser Run, use Browser Run instead of
+falling back to local Chrome. If `CDP_WS_ENDPOINT` and `CDP_HEADERS` are not set,
+check whether `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are set and
+derive the CLI variables from them. If neither pair is available, stop and tell
+the user Browser Run cannot start until those variables are set. Do not default
+to local Chrome unless the user approves that fallback or explicitly asks for
+local browser automation. Never print token values while debugging.
 
 `lab=true` selects Browser Run's experimental Chrome beta pool. Keep it on by
 default when using Browser Run so beta browser features, including WebMCP, are
@@ -308,16 +316,21 @@ available. Remove `lab=true` only when a stable Chrome pool is more important
 than beta feature access, such as production workloads.
 
 `CDP_WS_ENDPOINT` and `CDP_HEADERS` are the only variables the CLI consumes;
-`CF_ACCOUNT_ID` and `CF_API_TOKEN` are just inputs used to build them. Export
-them per shell session, or source them from a local `.env` (the dependency-free
-CLI does not read `.env` itself), rather than passing `--headers` on the command
-line where the token is recorded in shell history and process arguments.
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are just inputs used to build
+them. Export them per shell session, or source them from a local `.env` (the
+dependency-free CLI does not read `.env` itself), rather than passing `--headers`
+on the command line where the token is recorded in shell history and process
+arguments.
 
-To create the token, open the Cloudflare dashboard at Profile > API Tokens
-(`https://dash.cloudflare.com/profile/api-tokens`), choose Create Token, pick the
-Browser Rendering template if offered or a custom token with the
-Browser Rendering: Edit permission scoped to your account, and copy the secret
-once. Your account ID is shown on the account home page.
+To create the token, open the Cloudflare dashboard, go to Profile > API Tokens,
+choose Create Token, pick the Browser Rendering template if offered, or create a
+custom token with `Browser Rendering: Edit` scoped to the account. Copy the
+secret once. The account ID is shown on the account home page.
+
+If Cloudflare returns `10000 Authentication error`, the token is missing,
+invalid, or lacks Browser Rendering access. Ask the user to create a token with
+`Browser Rendering: Edit` and set `CLOUDFLARE_API_TOKEN`. Never print token
+values.
 
 ### WebMCP and beta browser features
 
@@ -337,7 +350,7 @@ as JSON:
 
 ```sh
 node <skill-directory>/scripts/cdp.mjs evaluate <target> \
-  'await navigator.modelContextTesting.executeTool("tool_name", JSON.stringify({}))'
+  '(async () => await navigator.modelContextTesting.executeTool("tool_name", JSON.stringify({})))()'
 ```
 
 Re-list tools after navigation or a tool call because available tools can change
