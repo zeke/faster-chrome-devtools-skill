@@ -335,14 +335,14 @@ values.
 ### WebMCP and beta browser features
 
 Browser Run lab sessions expose Chrome beta features. WebMCP-enabled sites can
-publish structured tools through `navigator.modelContextTesting`, which can be
+publish structured tools through `document.modelContext`, which can be
 faster and less fragile than screenshot, click, and type loops.
 
 After navigating to a page, check whether it exposes WebMCP tools:
 
 ```sh
 node <skill-directory>/scripts/cdp.mjs evaluate <target> \
-  'navigator.modelContextTesting?.listTools?.() ?? []'
+  'document.modelContext?.listTools?.() ?? []'
 ```
 
 When a relevant tool exists, prefer it over DOM interaction and pass parameters
@@ -350,7 +350,7 @@ as JSON:
 
 ```sh
 node <skill-directory>/scripts/cdp.mjs evaluate <target> \
-  '(async () => await navigator.modelContextTesting.executeTool("tool_name", JSON.stringify({})))()'
+  '(async () => await document.modelContext.executeTool("tool_name", JSON.stringify({})))()'
 ```
 
 Re-list tools after navigation or a tool call because available tools can change
