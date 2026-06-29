@@ -7,6 +7,12 @@ Works with Claude Code, OpenCode, Codex, Pi, or any coding agent that supports t
 
 ![HIC LIMAX NAVIGAT LENTE](images/chrome-snail-09.jpg)
 
+## WebMCP
+
+When using [Cloudflare Browser Run](https://developers.cloudflare.com/browser-rendering/), the skill now supports WebMCP discovery. If a site exposes WebMCP tools via `document.modelContext`, the agent uses them directly instead of clicking around in the DOM.
+
+![WebMCP discovery in action](images/webmcp-demo.jpg)
+
 ## Capabilities
 
 - List, open, and reuse tabs
