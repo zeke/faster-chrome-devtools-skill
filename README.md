@@ -19,6 +19,8 @@ Works with Claude Code, OpenCode, Codex, Pi, or any coding agent that supports t
 - Inspect console messages and failed network loads
 - Evaluate JavaScript or invoke any raw CDP method
 - Connect to authenticated remote browser endpoints
+- Hand Cloudflare Browser Run control to a human for
+  [human-in-the-loop](https://developers.cloudflare.com/browser-run/features/human-in-the-loop/) sensitive actions.
 - Keep the connection alive in a lightweight background daemon
 
 ## Install
@@ -56,7 +58,9 @@ Using Cloudflare Browser Run, open https://blog.cloudflare.com, read the page, a
 ```
 
 The skill's Browser Run setup uses `lab=true` by default so Chrome beta features
-such as WebMCP are available when the remote browser supports them.
+such as WebMCP are available when the remote browser supports them. It also
+supports structured Human in the Loop handoffs through Live View for login, MFA,
+CAPTCHA, sensitive input, and approval steps.
 
 ## Design
 

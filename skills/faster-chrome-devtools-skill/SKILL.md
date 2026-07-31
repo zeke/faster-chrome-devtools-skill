@@ -8,8 +8,10 @@ description: >
   elements, scrape page content, evaluate JavaScript on a page, or check console
   errors and failed network requests. Works against the user's local Chrome or a
   remote Cloudflare Browser Rendering endpoint over WebSocket. Relevant to
-  browser automation, web scraping, page screenshots, end-to-end UI checks, and
-  DevTools inspection. No Chrome DevTools MCP, Puppeteer, or Playwright required.
+  browser automation, web scraping, page screenshots, end-to-end UI checks,
+  DevTools inspection, and handing cloud browser control to a human for login,
+  MFA, CAPTCHA, sensitive input, or approval. No Chrome DevTools MCP, Puppeteer,
+  or Playwright required.
 compatibility: Requires Node.js 22+
 ---
 
@@ -164,6 +166,9 @@ fill <target> <selector|ref:123> <value>
 type <target> <text>
 press <target> <key>
 wait-for <target> <text|selector> <value> [timeout-ms]
+live-view <target> [expires-ms]
+handoff <target> <instructions> [timeout-ms]
+handoff-state <target>
 console <target>
 failures <target>
 raw <target> <CDP.method> [json-params]
@@ -297,7 +302,7 @@ an API token, then run any command:
 ```sh
 export CLOUDFLARE_ACCOUNT_ID=<account-id>
 export CLOUDFLARE_API_TOKEN=<token>   # needs Browser Rendering: Edit
-export CDP_WS_ENDPOINT="wss://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/browser-rendering/devtools/browser?keep_alive=600000&lab=true"
+export CDP_WS_ENDPOINT="wss://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/browser-run/devtools/browser?keep_alive=600000&lab=true"
 export CDP_HEADERS="{\"Authorization\":\"Bearer $CLOUDFLARE_API_TOKEN\"}"
 node <skill-directory>/scripts/cdp.mjs list
 ```
@@ -331,6 +336,48 @@ If Cloudflare returns `10000 Authentication error`, the token is missing,
 invalid, or lacks Browser Rendering access. Ask the user to create a token with
 `Browser Rendering: Edit` and set `CLOUDFLARE_API_TOKEN`. Never print token
 values.
+
+### Human in the Loop
+
+Use structured handoff when automation reaches MFA, SSO, CAPTCHA, sensitive data
+entry, a one-off complex interaction, or an action that requires human approval.
+This is available only on Browser Run, not local Chrome.
+
+First generate a Live View URL. Its expiry is 10 minutes by default and should
+be at least as long as the planned handoff:
+
+```sh
+node <skill-directory>/scripts/cdp.mjs live-view <target> 600000
+```
+
+Treat the returned URL as a temporary browser-access credential. Share it only
+with the human operator. Ask the operator to open it and confirm they can see the
+page before starting the handoff. Then run:
+
+```sh
+node <skill-directory>/scripts/cdp.mjs handoff <target> \
+  'Please complete MFA, then select Done. Select Failed if you cannot continue.' \
+  600000
+```
+
+The command subscribes to `Cloudflare.handoffComplete` before calling
+`Cloudflare.handoff`, then blocks until the operator selects Done or Failed, or
+the handoff times out. The timeout defaults to 10 minutes and cannot exceed
+Cloudflare's 30-minute limit. Inspect the JSON result's `success` and `reason`
+fields before resuming automation, then run `snapshot` to verify the new page
+state. Do not assume success from navigation alone.
+
+If a handoff may already be active, check before starting another:
+
+```sh
+node <skill-directory>/scripts/cdp.mjs handoff-state <target>
+```
+
+Give specific, actionable instructions that say what to do and when to select
+Done or Failed. Human control does not hide Browser Run's bot identity, so some
+sites may still block the session. For a manual flow without structured Done or
+Failed controls, share `live-view` and use `wait-for` to detect the expected page
+state.
 
 ### WebMCP and beta browser features
 
