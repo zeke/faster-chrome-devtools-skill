@@ -67,6 +67,7 @@ let browserServer;
 let endpoint;
 let stateDirectory;
 const seenMethods = [];
+const seenRequests = [];
 
 function runCli(args, overrides = {}) {
 	return execFileAsync(process.execPath, [cli, ...args], {
@@ -115,6 +116,7 @@ before(async () => {
 				if (frame.opcode !== 0x1) continue;
 				const request = JSON.parse(frame.text);
 				seenMethods.push(request.method);
+				seenRequests.push(request);
 				let result = {};
 				if (request.method === "Target.getTargets") {
 					result = {
@@ -146,10 +148,31 @@ before(async () => {
 					result = { result: { value: "" } };
 				} else if (request.method === "Target.createTarget") {
 					result = { targetId: "FEDCBA9876543210" };
+				} else if (request.method === "Cloudflare.getLiveView") {
+					result = {
+						devtoolsFrontendUrl: "https://live.example.test/session",
+					};
+				} else if (request.method === "Cloudflare.getHandoffState") {
+					result = { active: false };
+				} else if (request.method === "Cloudflare.handoff") {
+					result = { handoffId: "handoff-1" };
 				}
 				const response = { id: request.id, result };
 				if (request.sessionId) response.sessionId = request.sessionId;
 				socket.write(encodeFrame(JSON.stringify(response)));
+				if (request.method === "Cloudflare.handoff") {
+					setImmediate(() =>
+						socket.write(
+							encodeFrame(
+								JSON.stringify({
+									method: "Cloudflare.handoffComplete",
+									params: { handoffId: "handoff-1", success: true },
+									sessionId: request.sessionId,
+								}),
+							),
+						),
+					);
+				}
 			}
 		});
 	});
@@ -274,6 +297,56 @@ test("open creates a new tab without resolving a target", async () => {
 	assert.match(opened.stdout, /Opened FEDCBA9876543210/);
 	assert.match(opened.stdout, /https:\/\/opened\.test\//);
 	assert.ok(seenMethods.includes("Target.createTarget"));
+	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
+	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
+});
+
+test("Cloudflare Human in the Loop commands use the target session", async () => {
+	const liveView = await runCli([
+		"--ws-endpoint",
+		endpoint,
+		"live-view",
+		"ABCDEF01",
+		"900000",
+	]);
+	assert.equal(liveView.stdout.trim(), "https://live.example.test/session");
+	const liveViewRequest = seenRequests.find(
+		(request) => request.method === "Cloudflare.getLiveView",
+	);
+	assert.deepEqual(liveViewRequest.params, {
+		mode: "tab",
+		expiresInMs: 900000,
+	});
+	assert.equal(liveViewRequest.sessionId, "mock-session");
+
+	const state = await runCli([
+		"--ws-endpoint",
+		endpoint,
+		"handoff-state",
+		"ABCDEF01",
+	]);
+	assert.deepEqual(JSON.parse(state.stdout), { active: false });
+
+	const handoff = await runCli([
+		"--ws-endpoint",
+		endpoint,
+		"handoff",
+		"ABCDEF01",
+		"Please complete MFA",
+		"120000",
+	]);
+	assert.deepEqual(JSON.parse(handoff.stdout), {
+		handoffId: "handoff-1",
+		success: true,
+	});
+	const handoffRequest = seenRequests.find(
+		(request) => request.method === "Cloudflare.handoff",
+	);
+	assert.deepEqual(handoffRequest.params, {
+		instructions: "Please complete MFA",
+		timeout: 120000,
+	});
+
 	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
 	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
 });

@@ -57,6 +57,12 @@ function positiveInteger(value, name) {
 	return number;
 }
 
+function positiveIntegerAtMost(value, name, maximum) {
+	const number = positiveInteger(value, name);
+	if (number > maximum) throw new Error(`${name} must be at most ${maximum}`);
+	return number;
+}
+
 function activePortCandidates() {
 	const home = homedir();
 	if (platform() === "darwin") {
@@ -701,6 +707,7 @@ async function runDaemon(id) {
 	const activeRequests = new Map();
 	let closing = false;
 	let idleTimer;
+	let activeCommands = 0;
 
 	async function sessionFor(targetId) {
 		if (sessions.has(targetId)) return sessions.get(targetId);
@@ -788,6 +795,14 @@ async function runDaemon(id) {
 	const resetIdle = () => {
 		clearTimeout(idleTimer);
 		idleTimer = setTimeout(shutdown, IDLE_TIMEOUT);
+	};
+	const beginCommand = () => {
+		activeCommands++;
+		clearTimeout(idleTimer);
+	};
+	const finishCommand = () => {
+		activeCommands--;
+		if (activeCommands === 0) resetIdle();
 	};
 	cdp.onClose(shutdown);
 	process.on("SIGINT", shutdown);
@@ -898,6 +913,51 @@ async function runDaemon(id) {
 				: config.timeout;
 			return waitFor(cdp, sid, rest[0], rest[1], waitTimeout);
 		}
+		if (command === "live-view") {
+			const expiresInMs = rest[0]
+				? positiveIntegerAtMost(rest[0], "Live View expiry", 3_600_000)
+				: 600_000;
+			const { devtoolsFrontendUrl } = await cdp.send(
+				"Cloudflare.getLiveView",
+				{ mode: "tab", expiresInMs },
+				sid,
+			);
+			return devtoolsFrontendUrl;
+		}
+		if (command === "handoff-state") {
+			return JSON.stringify(
+				await cdp.send("Cloudflare.getHandoffState", {}, sid),
+				null,
+				2,
+			);
+		}
+		if (command === "handoff") {
+			if (!rest[0]) throw new Error("handoff requires instructions");
+			const timeout = rest[1]
+				? positiveIntegerAtMost(rest[1], "handoff timeout", 1_800_000)
+				: 600_000;
+			const completed = cdp.waitForEvent(
+				"Cloudflare.handoffComplete",
+				sid,
+				timeout + 1_000,
+			);
+			let handoff;
+			try {
+				handoff = await cdp.send(
+					"Cloudflare.handoff",
+					{ instructions: rest[0], timeout },
+					sid,
+				);
+			} catch (error) {
+				completed.cancel();
+				throw error;
+			}
+			return JSON.stringify(
+				{ handoffId: handoff.handoffId, ...(await completed.promise) },
+				null,
+				2,
+			);
+		}
 		if (command === "screenshot" || command === "shot") {
 			const screenshot = parseScreenshotArgs(rest);
 			const params = {
@@ -959,21 +1019,23 @@ async function runDaemon(id) {
 				socket.end(`${JSON.stringify({ ok: false, error: "Unauthorized" })}\n`);
 				return;
 			}
-			resetIdle();
+			beginCommand();
 			execute(request.command, request.args || [])
 				.then((result) => {
 					const stop = typeof result === "object" && result.stop;
 					const output = stop ? result.output : result;
+					if (!stop) finishCommand();
 					socket.end(
 						`${JSON.stringify({ ok: true, result: output ?? "" })}\n`,
 						stop ? shutdown : undefined,
 					);
 				})
-				.catch((error) =>
+				.catch((error) => {
+					finishCommand();
 					socket.end(
 						`${JSON.stringify({ ok: false, error: error.message })}\n`,
-					),
-				);
+					);
+				});
 		});
 	});
 	server.listen(0, "127.0.0.1", () => {
@@ -1108,6 +1170,9 @@ Commands:
   type <target> <text>
   press <target> <key>
   wait-for <target> <text|selector> <value> [timeout-ms]
+  live-view <target> [expires-ms]
+  handoff <target> <instructions> [timeout-ms]
+  handoff-state <target>
   console <target>
   failures <target>
   raw <target> <CDP.method> [json-params]
@@ -1151,6 +1216,9 @@ async function main() {
 		"type",
 		"press",
 		"wait-for",
+		"live-view",
+		"handoff",
+		"handoff-state",
 		"console",
 		"failures",
 		"raw",
