@@ -19,7 +19,8 @@ Works with Claude Code, OpenCode, Codex, Pi, or any coding agent that supports t
 - Inspect console messages and failed network loads
 - Evaluate JavaScript or invoke any raw CDP method
 - Connect to authenticated remote browser endpoints
-- Hand Cloudflare Browser Run control to a human for MFA or sensitive actions
+- Hand Cloudflare Browser Run control to a human for
+  [multi-factor auth or other sensitive actions](https://developers.cloudflare.com/browser-run/features/human-in-the-loop/)
 - Keep the connection alive in a lightweight background daemon
 
 ## Install
