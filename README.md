@@ -105,6 +105,10 @@ To set up MCP instead, see [Browsers in the cloud](https://zeke.sikelianos.com/b
 
 See [AGENTS.md](AGENTS.md)
 
+## More Skills
+
+Browse more skills at [zeke/skills](https://github.com/zeke/skills).
+
 ## License
 
 MIT
