@@ -300,7 +300,9 @@ test("CLI connects directly, lists targets, and reuses its daemon", async () => 
 			token: "three",
 		}),
 	);
-	const allStop = await runCli(["stop", "--all"]);
+	const allStop = await runCli(["stop", "--all"], {
+		CDP_WS_ENDPOINT: "ws://127.0.0.1:1/devtools/browser",
+	});
 	assert.match(allStop.stdout, /Removed stale daemon state 2222222222222222/);
 	assert.match(allStop.stdout, /Removed stale daemon state 3333333333333333/);
 	assert.deepEqual(readdirSync(stateDirectory), []);

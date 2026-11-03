@@ -1230,14 +1230,12 @@ function parseStopArgs(args, options) {
 	}
 	if (id && !/^[a-f0-9]{16}$/i.test(id))
 		throw new Error("--id must be a 16-character daemon id");
-	const explicitEndpoint = Boolean(options.wsEndpoint || options.httpEndpoint);
-	if (options.wsEndpoint && options.httpEndpoint) {
+	if (all && id) throw new Error("Choose either stop --id or stop --all");
+	// --all and --id win over an endpoint, which may come from CDP_* env vars.
+	const explicitEndpoint =
+		!all && !id && Boolean(options.wsEndpoint || options.httpEndpoint);
+	if (explicitEndpoint && options.wsEndpoint && options.httpEndpoint) {
 		throw new Error("Choose either --ws-endpoint or --http-endpoint, not both");
-	}
-	if ([all, Boolean(id), explicitEndpoint].filter(Boolean).length > 1) {
-		throw new Error(
-			"Choose only one stop selector: an endpoint, --id, or --all",
-		);
 	}
 	return { all, id: id?.toLowerCase(), explicitEndpoint };
 }
@@ -1345,7 +1343,8 @@ Commands:
   raw <target> <CDP.method> [json-params]
   stop [--id <daemon-id> | --all]
 
-With an explicit --ws-endpoint or --http-endpoint, stop targets only that daemon.
+With an explicit --ws-endpoint or --http-endpoint, stop targets only that daemon,
+unless --id or --all is given.
 With no selector, it stops the only daemon and refuses if multiple are running.
 
 Targets are unique ID prefixes shown by list. snapshot prints stable ref values
