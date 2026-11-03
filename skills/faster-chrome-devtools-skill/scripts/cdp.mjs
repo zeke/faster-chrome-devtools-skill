@@ -621,7 +621,10 @@ function keyDefinition(combo) {
 		delete definition.text;
 		const command = EDIT_COMMANDS[name.toLowerCase()];
 		const primary = modifiers & ~MODIFIERS.shift;
-		if (command && (primary === MODIFIERS.meta || primary === MODIFIERS.control))
+		if (
+			command &&
+			(primary === MODIFIERS.meta || primary === MODIFIERS.control)
+		)
 			definition.commands = [
 				command === "undo" && modifiers & MODIFIERS.shift ? "redo" : command,
 			];
@@ -1432,9 +1435,9 @@ if (isMainModule()) {
 export {
 	connectionIdentity,
 	formatPages,
+	formatSnapshot,
 	keyDefinition,
 	localPortEndpoint,
-	formatSnapshot,
 	parseOptions,
 	parseScreenshotArgs,
 	resolveTarget,

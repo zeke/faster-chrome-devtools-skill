@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
 import http from "node:http";
+import { test } from "node:test";
 import {
 	connectionIdentity,
 	formatPages,
+	formatSnapshot,
 	keyDefinition,
 	localPortEndpoint,
-	formatSnapshot,
 	parseOptions,
 	parseScreenshotArgs,
 	resolveTarget,

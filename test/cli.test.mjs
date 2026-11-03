@@ -379,7 +379,15 @@ test("Cloudflare Human in the Loop commands use the target session", async () =>
 test("--timeout applies per command after the daemon has started", async () => {
 	await runCli(["--ws-endpoint", endpoint, "list"]);
 	await assert.rejects(
-		runCli(["--ws-endpoint", endpoint, "--timeout", "100", "eval", "ABCDEF01", "slow"]),
+		runCli([
+			"--ws-endpoint",
+			endpoint,
+			"--timeout",
+			"100",
+			"eval",
+			"ABCDEF01",
+			"slow",
+		]),
 		(error) => {
 			assert.match(error.stderr, /Timed out after 100ms: Runtime.evaluate/);
 			return true;
@@ -409,7 +417,10 @@ test("connection failures report the underlying error", async () => {
 	await assert.rejects(
 		runCli(["--ws-endpoint", "ws://127.0.0.1:1/devtools/browser", "list"]),
 		(error) => {
-			assert.match(error.stderr, /Could not connect to the browser: .*ECONNREFUSED/);
+			assert.match(
+				error.stderr,
+				/Could not connect to the browser: .*ECONNREFUSED/,
+			);
 			return true;
 		},
 	);
@@ -430,7 +441,15 @@ test("click explains invalid selectors", async () => {
 
 test("wait-for reports a clean timeout", async () => {
 	await assert.rejects(
-		runCli(["--ws-endpoint", endpoint, "wait-for", "ABCDEF01", "text", "Nope", "50"]),
+		runCli([
+			"--ws-endpoint",
+			endpoint,
+			"wait-for",
+			"ABCDEF01",
+			"text",
+			"Nope",
+			"50",
+		]),
 		(error) => {
 			assert.equal(
 				error.stderr.trim(),
