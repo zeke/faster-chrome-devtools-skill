@@ -148,7 +148,9 @@ node <skill-directory>/scripts/cdp.mjs press <target> Enter
 node <skill-directory>/scripts/cdp.mjs wait-for <target> text 'Welcome' 10000
 ```
 
-CSS selectors work when a snapshot ref is unavailable:
+Standard CSS selectors work when a snapshot ref is unavailable. Playwright-style
+selectors such as `text=Close` or `:has-text()` are not supported; find the
+element in `snapshot` and use its ref instead:
 
 ```sh
 node <skill-directory>/scripts/cdp.mjs click <target> 'button[type=submit]'

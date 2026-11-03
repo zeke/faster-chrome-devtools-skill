@@ -427,6 +427,11 @@ async function backendNodeForTarget(cdp, sid, target) {
 		},
 		sid,
 	);
+	if (result.exceptionDetails) {
+		throw new Error(
+			`Invalid CSS selector: ${parsed.selector}. Only standard CSS selectors are supported (not Playwright text= or :has-text()); use a ref from snapshot instead.`,
+		);
+	}
 	if (!result.result?.objectId || result.result.subtype === "null") {
 		throw new Error(`Element not found: ${parsed.selector}`);
 	}

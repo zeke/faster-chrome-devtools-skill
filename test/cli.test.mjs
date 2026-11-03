@@ -149,6 +149,14 @@ before(async () => {
 					};
 				} else if (request.method === "DOM.getBoxModel") {
 					result = { model: { border: [10, 20, 30, 20, 30, 40, 10, 40] } };
+				} else if (
+					request.method === "Runtime.evaluate" &&
+					request.params?.expression?.includes("text=Close")
+				) {
+					result = {
+						result: { type: "object", subtype: "error", objectId: "err-1" },
+						exceptionDetails: { text: "Uncaught" },
+					};
 				} else if (request.method === "Runtime.evaluate") {
 					result = { result: { value: "" } };
 				} else if (request.method === "Target.createTarget") {
@@ -404,6 +412,18 @@ test("connection failures report the underlying error", async () => {
 		},
 	);
 	assert.deepEqual(readdirSync(stateDirectory), []);
+});
+
+test("click explains invalid selectors", async () => {
+	await assert.rejects(
+		runCli(["--ws-endpoint", endpoint, "click", "ABCDEF01", "text=Close"]),
+		(error) => {
+			assert.match(error.stderr, /Invalid CSS selector: text=Close/);
+			return true;
+		},
+	);
+	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
+	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
 });
 
 test("type reports failure when nothing is focused", async () => {
