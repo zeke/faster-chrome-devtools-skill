@@ -46,7 +46,12 @@ The CLI tries these connection methods in order:
 1. `--ws-endpoint` or `CDP_WS_ENDPOINT`
 2. `--http-endpoint` or `CDP_HTTP_ENDPOINT`, using `/json/version` discovery
 3. Chrome's `DevToolsActivePort` file on macOS, Windows, or Linux
-4. `http://127.0.0.1:9222/json/version`
+4. `http://127.0.0.1:9222/json/version`, or `ws://127.0.0.1:9222/devtools/browser`
+   when port 9222 is open but HTTP discovery is disabled
+
+Auto-discovery and an explicit `--ws-endpoint` for the same browser share one
+daemon, so prefer plain auto-discovery for local Chrome instead of switching
+between styles.
 
 Examples:
 

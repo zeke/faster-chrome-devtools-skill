@@ -104,6 +104,30 @@ async function endpointFromHttp(httpEndpoint, headers, timeout) {
 	return info.webSocketDebuggerUrl;
 }
 
+function portOpen(port, timeout = 1_000) {
+	return new Promise((resolve) => {
+		const socket = net.connect({ host: "127.0.0.1", port });
+		const done = (open) => {
+			socket.destroy();
+			resolve(open);
+		};
+		socket.setTimeout(timeout, () => done(false));
+		socket.once("connect", () => done(true));
+		socket.once("error", () => done(false));
+	});
+}
+
+// Chrome's built-in remote debugging (chrome://inspect) can listen on a port
+// without writing DevToolsActivePort and with HTTP discovery disabled, while
+// still accepting the browser WebSocket at /devtools/browser.
+async function localPortEndpoint(port, headers) {
+	try {
+		return await endpointFromHttp(`http://127.0.0.1:${port}`, headers, 1_000);
+	} catch {}
+	if (await portOpen(port)) return `ws://127.0.0.1:${port}/devtools/browser`;
+	return null;
+}
+
 async function resolveEndpoint(options) {
 	if (options.wsEndpoint) return options.wsEndpoint;
 	if (options.httpEndpoint)
@@ -121,13 +145,8 @@ async function resolveEndpoint(options) {
 		if (port && browserPath) return `ws://127.0.0.1:${port}${browserPath}`;
 	}
 
-	try {
-		return await endpointFromHttp(
-			"http://127.0.0.1:9222",
-			options.headers,
-			1_000,
-		);
-	} catch {}
+	const endpoint = await localPortEndpoint(9222, options.headers);
+	if (endpoint) return endpoint;
 	throw new Error(
 		[
 			"Could not find Chrome's CDP endpoint.",
@@ -562,7 +581,9 @@ function connectionIdentity(options, resolvedEndpoint) {
 	if (options.wsEndpoint) return `ws:${options.wsEndpoint}`;
 	if (options.httpEndpoint)
 		return `http:${normalizeHttpEndpoint(options.httpEndpoint)}`;
-	return `auto:${resolvedEndpoint}`;
+	// Share a daemon with an explicit --ws-endpoint for the same browser, so
+	// switching styles does not trigger another approval prompt.
+	return `ws:${resolvedEndpoint}`;
 }
 
 function stateId(identity, headers) {
@@ -1354,7 +1375,9 @@ if (isMainModule()) {
 }
 
 export {
+	connectionIdentity,
 	formatPages,
+	localPortEndpoint,
 	formatSnapshot,
 	parseOptions,
 	parseScreenshotArgs,

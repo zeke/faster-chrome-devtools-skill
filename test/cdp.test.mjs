@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import http from "node:http";
 import {
+	connectionIdentity,
 	formatPages,
+	localPortEndpoint,
 	formatSnapshot,
 	parseOptions,
 	parseScreenshotArgs,
@@ -122,4 +125,30 @@ test("parseScreenshotArgs supports safe full-page options", () => {
 		quality: 60,
 		fullPage: true,
 	});
+});
+
+test("auto-discovered and explicit WebSocket endpoints share a daemon identity", () => {
+	const endpoint = "ws://127.0.0.1:9222/devtools/browser";
+	assert.equal(
+		connectionIdentity({}, endpoint),
+		connectionIdentity({ wsEndpoint: endpoint }),
+	);
+});
+
+test("localPortEndpoint falls back to /devtools/browser when discovery is disabled", async () => {
+	const server = http.createServer((_request, response) => {
+		response.statusCode = 404;
+		response.end();
+	});
+	await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address();
+	try {
+		assert.equal(
+			await localPortEndpoint(port, {}),
+			`ws://127.0.0.1:${port}/devtools/browser`,
+		);
+	} finally {
+		await new Promise((resolve) => server.close(resolve));
+	}
+	assert.equal(await localPortEndpoint(port, {}), null);
 });
