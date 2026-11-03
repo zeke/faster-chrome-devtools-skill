@@ -541,41 +541,89 @@ async function waitFor(cdp, sid, kind, expected, timeout) {
 	return `Found ${kind} ${JSON.stringify(expected)}`;
 }
 
-function keyDefinition(key) {
-	const named = {
-		Enter: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 },
-		Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 },
-		Escape: { key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
-		Backspace: {
-			key: "Backspace",
-			code: "Backspace",
-			windowsVirtualKeyCode: 8,
-		},
-		ArrowUp: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
-		ArrowDown: {
-			key: "ArrowDown",
-			code: "ArrowDown",
-			windowsVirtualKeyCode: 40,
-		},
-		ArrowLeft: {
-			key: "ArrowLeft",
-			code: "ArrowLeft",
-			windowsVirtualKeyCode: 37,
-		},
-		ArrowRight: {
-			key: "ArrowRight",
-			code: "ArrowRight",
-			windowsVirtualKeyCode: 39,
-		},
-	};
-	return (
-		named[key] || {
+const NAMED_KEYS = {
+	Enter: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 },
+	Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 },
+	Escape: { key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+	Backspace: { key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 },
+	Delete: { key: "Delete", code: "Delete", windowsVirtualKeyCode: 46 },
+	Space: { key: " ", code: "Space", windowsVirtualKeyCode: 32, text: " " },
+	Home: { key: "Home", code: "Home", windowsVirtualKeyCode: 36 },
+	End: { key: "End", code: "End", windowsVirtualKeyCode: 35 },
+	PageUp: { key: "PageUp", code: "PageUp", windowsVirtualKeyCode: 33 },
+	PageDown: { key: "PageDown", code: "PageDown", windowsVirtualKeyCode: 34 },
+	ArrowUp: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
+	ArrowDown: { key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 },
+	ArrowLeft: { key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 },
+	ArrowRight: {
+		key: "ArrowRight",
+		code: "ArrowRight",
+		windowsVirtualKeyCode: 39,
+	},
+};
+
+const MODIFIERS = {
+	alt: 1,
+	option: 1,
+	control: 2,
+	ctrl: 2,
+	meta: 4,
+	cmd: 4,
+	command: 4,
+	shift: 8,
+};
+
+// Chrome only runs editing shortcuts such as select-all for synthetic key
+// events when the matching editor command is passed explicitly.
+const EDIT_COMMANDS = {
+	a: "selectAll",
+	c: "copy",
+	x: "cut",
+	v: "paste",
+	z: "undo",
+};
+
+function keyDefinition(combo) {
+	if (!combo) throw new Error("press requires a key, such as Enter or Meta+a");
+	const parts = combo.length > 1 ? combo.split(/\+(?!$)/) : [combo];
+	const name = parts.pop();
+	let modifiers = 0;
+	for (const part of parts) {
+		const bit = MODIFIERS[part.toLowerCase()];
+		if (!bit) throw new Error(`Unknown modifier "${part}" in ${combo}`);
+		modifiers |= bit;
+	}
+	let definition = NAMED_KEYS[name];
+	if (!definition) {
+		if (name.length !== 1)
+			throw new Error(
+				`Unknown key "${name}". Use a single character or one of: ${Object.keys(NAMED_KEYS).join(", ")}`,
+			);
+		const upper = name.toUpperCase();
+		const key = modifiers & MODIFIERS.shift ? upper : name;
+		definition = {
 			key,
 			text: key,
-			code: `Key${key.toUpperCase()}`,
-			windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0),
-		}
-	);
+			code: /[a-z]/i.test(name)
+				? `Key${upper}`
+				: /\d/.test(name)
+					? `Digit${name}`
+					: undefined,
+			windowsVirtualKeyCode: upper.charCodeAt(0),
+		};
+	}
+	definition = { ...definition, modifiers };
+	// Shortcuts with Alt, Control, or Meta must not insert their character.
+	if (modifiers & (MODIFIERS.alt | MODIFIERS.control | MODIFIERS.meta)) {
+		delete definition.text;
+		const command = EDIT_COMMANDS[name.toLowerCase()];
+		const primary = modifiers & ~MODIFIERS.shift;
+		if (command && (primary === MODIFIERS.meta || primary === MODIFIERS.control))
+			definition.commands = [
+				command === "undo" && modifiers & MODIFIERS.shift ? "redo" : command,
+			];
+	}
+	return definition;
 }
 
 function normalizeHttpEndpoint(endpoint) {
@@ -1016,7 +1064,7 @@ async function runDaemon(id) {
 			);
 			await cdp.send(
 				"Input.dispatchKeyEvent",
-				{ type: "keyUp", ...key, text: undefined },
+				{ type: "keyUp", ...key, text: undefined, commands: undefined },
 				sid,
 			);
 			return `Pressed ${rest[0]}`;
@@ -1287,7 +1335,7 @@ Commands:
   click <target> <selector|ref:123>
   fill <target> <selector|ref:123> <value>
   type <target> <text>
-  press <target> <key>
+  press <target> <key>          e.g. Enter, Space, Escape, Meta+a, Shift+Tab
   wait-for <target> <text|selector> <value> [timeout-ms]
   live-view <target> [expires-ms]
   handoff <target> <instructions> [timeout-ms]
@@ -1382,6 +1430,7 @@ if (isMainModule()) {
 export {
 	connectionIdentity,
 	formatPages,
+	keyDefinition,
 	localPortEndpoint,
 	formatSnapshot,
 	parseOptions,

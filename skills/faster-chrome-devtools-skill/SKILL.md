@@ -198,6 +198,12 @@ Use `type` after focusing an element when JavaScript cannot reach it, such as an
 input inside a cross-origin iframe. It uses CDP's `Input.insertText` rather than
 DOM evaluation.
 
+`press` takes a single character or a named key (`Enter`, `Tab`, `Escape`,
+`Space`, `Backspace`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, arrow
+keys), optionally with `Alt+`, `Control+`, `Meta+`, or `Shift+` modifiers, such
+as `Meta+a`, `Shift+Tab`, or `Alt+ArrowDown`. Select-all, copy, cut, paste, and
+undo shortcuts trigger the matching editor command.
+
 Use `raw` as an escape hatch for any protocol method:
 
 ```sh

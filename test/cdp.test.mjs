@@ -4,6 +4,7 @@ import http from "node:http";
 import {
 	connectionIdentity,
 	formatPages,
+	keyDefinition,
 	localPortEndpoint,
 	formatSnapshot,
 	parseOptions,
@@ -151,4 +152,28 @@ test("localPortEndpoint falls back to /devtools/browser when discovery is disabl
 		await new Promise((resolve) => server.close(resolve));
 	}
 	assert.equal(await localPortEndpoint(port, {}), null);
+});
+
+test("keyDefinition supports modifiers and named keys", () => {
+	assert.deepEqual(keyDefinition("Enter"), {
+		key: "Enter",
+		code: "Enter",
+		windowsVirtualKeyCode: 13,
+		modifiers: 0,
+	});
+	assert.equal(keyDefinition("Space").text, " ");
+	const selectAll = keyDefinition("Meta+a");
+	assert.equal(selectAll.modifiers, 4);
+	assert.equal(selectAll.text, undefined);
+	assert.deepEqual(selectAll.commands, ["selectAll"]);
+	assert.deepEqual(keyDefinition("Control+Shift+z").commands, ["redo"]);
+	const shifted = keyDefinition("Shift+d");
+	assert.equal(shifted.key, "D");
+	assert.equal(shifted.text, "D");
+	assert.equal(shifted.modifiers, 8);
+	assert.equal(keyDefinition("Alt+ArrowDown").modifiers, 1);
+	assert.equal(keyDefinition("+").key, "+");
+	assert.equal(keyDefinition("Shift++").key, "+");
+	assert.throws(() => keyDefinition("Hyper+a"), /Unknown modifier/);
+	assert.throws(() => keyDefinition("F13"), /Unknown key/);
 });
