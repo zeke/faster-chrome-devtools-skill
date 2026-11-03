@@ -235,6 +235,11 @@ Suggested limits:
 | Resource-heavy page | 30,000ms |
 | OAuth or external redirect | 60,000ms |
 
+For long `evaluate` or `raw` calls, raise the limit with the global option,
+for example `--timeout 60000 evaluate <target> ...`. It applies to that command
+only, even when the daemon is already running, so never `stop` the daemon to
+change a timeout; restarting it forces a new Chrome approval prompt.
+
 `navigate` waits for `document.readyState === "complete"`. Dynamic application
 state may arrive later, so follow navigation with `wait-for` or `snapshot`.
 

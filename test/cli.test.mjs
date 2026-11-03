@@ -159,6 +159,16 @@ before(async () => {
 				}
 				const response = { id: request.id, result };
 				if (request.sessionId) response.sessionId = request.sessionId;
+				if (
+					request.method === "Runtime.evaluate" &&
+					request.params?.expression === "slow"
+				) {
+					setTimeout(
+						() => socket.write(encodeFrame(JSON.stringify(response))),
+						500,
+					);
+					continue;
+				}
 				socket.write(encodeFrame(JSON.stringify(response)));
 				if (request.method === "Cloudflare.handoff") {
 					setImmediate(() =>
@@ -347,6 +357,19 @@ test("Cloudflare Human in the Loop commands use the target session", async () =>
 		timeout: 120000,
 	});
 
+	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
+	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
+});
+
+test("--timeout applies per command after the daemon has started", async () => {
+	await runCli(["--ws-endpoint", endpoint, "list"]);
+	await assert.rejects(
+		runCli(["--ws-endpoint", endpoint, "--timeout", "100", "eval", "ABCDEF01", "slow"]),
+		(error) => {
+			assert.match(error.stderr, /Timed out after 100ms: Runtime.evaluate/);
+			return true;
+		},
+	);
 	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
 	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
 });

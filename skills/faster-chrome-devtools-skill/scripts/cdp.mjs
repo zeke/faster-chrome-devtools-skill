@@ -808,7 +808,7 @@ async function runDaemon(id) {
 	process.on("SIGINT", shutdown);
 	process.on("SIGTERM", shutdown);
 
-	async function execute(command, args) {
+	async function execute(command, args, timeout = config.timeout) {
 		if (command === "list") return formatPages(await pages(cdp));
 		if (command === "stop") return { stop: true, output: "" };
 		if (command === "open" || command === "new") {
@@ -825,7 +825,7 @@ async function runDaemon(id) {
 			return formatSnapshot(nodes);
 		}
 		if (command === "evaluate" || command === "eval")
-			return evaluate(cdp, sid, rest.join(" "), config.timeout);
+			return evaluate(cdp, sid, rest.join(" "), timeout);
 		if (command === "html")
 			return evaluate(
 				cdp,
@@ -838,7 +838,7 @@ async function runDaemon(id) {
 			if (!rest[0]) throw new Error("navigate requires a URL");
 			const navigationTimeout = rest[1]
 				? positiveInteger(rest[1], "navigation timeout")
-				: config.timeout;
+				: timeout;
 			const loaded = cdp.waitForEvent(
 				"Page.loadEventFired",
 				sid,
@@ -910,7 +910,7 @@ async function runDaemon(id) {
 		if (command === "wait-for") {
 			const waitTimeout = rest[2]
 				? positiveInteger(rest[2], "wait timeout")
-				: config.timeout;
+				: timeout;
 			return waitFor(cdp, sid, rest[0], rest[1], waitTimeout);
 		}
 		if (command === "live-view") {
@@ -933,19 +933,19 @@ async function runDaemon(id) {
 		}
 		if (command === "handoff") {
 			if (!rest[0]) throw new Error("handoff requires instructions");
-			const timeout = rest[1]
+			const handoffTimeout = rest[1]
 				? positiveIntegerAtMost(rest[1], "handoff timeout", 1_800_000)
 				: 600_000;
 			const completed = cdp.waitForEvent(
 				"Cloudflare.handoffComplete",
 				sid,
-				timeout + 1_000,
+				handoffTimeout + 1_000,
 			);
 			let handoff;
 			try {
 				handoff = await cdp.send(
 					"Cloudflare.handoff",
-					{ instructions: rest[0], timeout },
+					{ instructions: rest[0], timeout: handoffTimeout },
 					sid,
 				);
 			} catch (error) {
@@ -983,7 +983,7 @@ async function runDaemon(id) {
 				"Page.captureScreenshot",
 				params,
 				sid,
-				Math.max(config.timeout, 30_000),
+				Math.max(timeout, 30_000),
 			);
 			const bytes = Buffer.from(data, "base64");
 			writeFileSync(screenshot.path, bytes);
@@ -995,7 +995,11 @@ async function runDaemon(id) {
 			return JSON.stringify(failedRequests.get(sid) || [], null, 2);
 		if (command === "raw") {
 			const params = rest[1] ? JSON.parse(rest.slice(1).join(" ")) : {};
-			return JSON.stringify(await cdp.send(rest[0], params, sid), null, 2);
+			return JSON.stringify(
+				await cdp.send(rest[0], params, sid, timeout),
+				null,
+				2,
+			);
 		}
 		throw new Error(`Unknown command: ${command}`);
 	}
@@ -1020,7 +1024,7 @@ async function runDaemon(id) {
 				return;
 			}
 			beginCommand();
-			execute(request.command, request.args || [])
+			execute(request.command, request.args || [], request.timeout)
 				.then((result) => {
 					const stop = typeof result === "object" && result.stop;
 					const output = stop ? result.output : result;
@@ -1235,6 +1239,7 @@ async function main() {
 	const result = await daemonRequest(socket, state, {
 		command,
 		args: commandArgs,
+		timeout: options.timeout,
 	});
 	if (result) console.log(result);
 }
