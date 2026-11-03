@@ -22,6 +22,10 @@ import { connectWebSocket } from "./lib/websocket.mjs";
 const SCRIPT = fileURLToPath(import.meta.url);
 const DEFAULT_TIMEOUT = 15_000;
 const IDLE_TIMEOUT = 20 * 60_000;
+// Chrome holds the WebSocket upgrade open until the user answers its "Allow
+// debugging" prompt, so local connections get time for a human to respond.
+const APPROVAL_TIMEOUT = 120_000;
+const APPROVAL_NOTICE_DELAY = 2_000;
 const MIN_PREFIX = 8;
 const STATE_PREFIX = "faster-cdp-";
 const VERSION = "0.1.0";
@@ -145,12 +149,8 @@ class CDP {
 		this.#defaultTimeout = defaultTimeout;
 	}
 
-	async connect(endpoint, headers) {
-		this.#connection = await connectWebSocket(
-			endpoint,
-			headers,
-			this.#defaultTimeout,
-		);
+	async connect(endpoint, headers, timeout = this.#defaultTimeout) {
+		this.#connection = await connectWebSocket(endpoint, headers, timeout);
 		this.#connection.onMessage((text) => {
 			const message = JSON.parse(text);
 			if (message.id && this.#pending.has(message.id)) {
@@ -600,6 +600,53 @@ function statePath(id) {
 function configPath(id) {
 	return join(stateDirectory(), `${STATE_PREFIX}${id}.config.json`);
 }
+function pendingPath(id) {
+	return join(stateDirectory(), `${STATE_PREFIX}${id}.pending.json`);
+}
+
+function processAlive(pid) {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		return error.code === "EPERM";
+	}
+}
+
+function removePending(id) {
+	try {
+		unlinkSync(pendingPath(id));
+	} catch {}
+}
+
+// Atomically claims the right to start a daemon. Returns false when another
+// live process is already starting one for the same connection.
+function claimPending(id) {
+	for (let attempt = 0; attempt < 2; attempt++) {
+		try {
+			writeFileSync(pendingPath(id), JSON.stringify({ pid: process.pid }), {
+				flag: "wx",
+				mode: 0o600,
+			});
+			return true;
+		} catch (error) {
+			if (error.code !== "EEXIST") throw error;
+		}
+		const pending = readState(pendingPath(id));
+		if (pending && !pending.error && processAlive(pending.pid)) return false;
+		removePending(id);
+	}
+	return false;
+}
+
+function isLoopbackEndpoint(endpoint) {
+	try {
+		const { hostname } = new URL(endpoint);
+		return ["127.0.0.1", "localhost", "[::1]"].includes(hostname);
+	} catch {
+		return false;
+	}
+}
 
 function readState(path) {
 	try {
@@ -663,31 +710,54 @@ async function daemonFor(endpoint, options) {
 		}
 	}
 
-	const config = {
-		endpoint,
-		headers: options.headers,
-		timeout: options.timeout,
-		id,
-		label: safeConnectionLabel(options),
-	};
-	const daemonConfigPath = configPath(id);
-	writeFileSync(daemonConfigPath, JSON.stringify(config), { mode: 0o600 });
-	const child = spawn(process.execPath, [SCRIPT, "_daemon", id], {
-		detached: true,
-		stdio: "ignore",
-	});
-	child.unref();
-	for (let attempt = 0; attempt < 50; attempt++) {
+	// Reuse a daemon that is still waiting for Chrome's approval instead of
+	// spawning another one, which would show the user a second prompt.
+	if (claimPending(id)) {
+		const config = {
+			endpoint,
+			headers: options.headers,
+			timeout: options.timeout,
+			id,
+			label: safeConnectionLabel(options),
+		};
+		writeFileSync(configPath(id), JSON.stringify(config), { mode: 0o600 });
+		const child = spawn(process.execPath, [SCRIPT, "_daemon", id], {
+			detached: true,
+			stdio: "ignore",
+		});
+		child.unref();
+	}
+
+	const started = Date.now();
+	let noticed = false;
+	while (Date.now() - started < APPROVAL_TIMEOUT + 5_000) {
 		await sleep(200);
 		state = readState(path);
-		if (!state) continue;
-		try {
-			const socket = await connectDaemon(state);
-			return { socket, state };
-		} catch {}
+		if (state) {
+			try {
+				const socket = await connectDaemon(state);
+				return { socket, state };
+			} catch {}
+			continue;
+		}
+		const current = readState(pendingPath(id));
+		if (current?.error) {
+			removePending(id);
+			throw new Error(`Could not connect to the browser: ${current.error}`);
+		}
+		if ((!current || !processAlive(current.pid)) && !readState(path)) {
+			removePending(id);
+			throw new Error("CDP daemon exited before connecting to the browser.");
+		}
+		if (!noticed && Date.now() - started > APPROVAL_NOTICE_DELAY) {
+			noticed = true;
+			process.stderr.write(
+				"Waiting for the browser to accept the debugging connection. If Chrome shows an Allow debugging prompt, click Allow.\n",
+			);
+		}
 	}
 	throw new Error(
-		"CDP daemon failed to start. Grant Chrome debugging access if prompted, then retry.",
+		"Timed out waiting for the browser to accept the debugging connection. Grant Chrome debugging access if prompted, then retry.",
 	);
 }
 
@@ -699,8 +769,26 @@ async function runDaemon(id) {
 	} catch {}
 	const path = statePath(config.id);
 	const token = randomBytes(24).toString("hex");
+	writeFileSync(pendingPath(config.id), JSON.stringify({ pid: process.pid }), {
+		mode: 0o600,
+	});
 	const cdp = new CDP(config.timeout);
-	await cdp.connect(config.endpoint, config.headers);
+	try {
+		await cdp.connect(
+			config.endpoint,
+			config.headers,
+			isLoopbackEndpoint(config.endpoint)
+				? Math.max(config.timeout, APPROVAL_TIMEOUT)
+				: config.timeout,
+		);
+	} catch (error) {
+		writeFileSync(
+			pendingPath(config.id),
+			JSON.stringify({ pid: process.pid, error: error.message }),
+			{ mode: 0o600 },
+		);
+		process.exit(1);
+	}
 	const sessions = new Map();
 	const consoleMessages = new Map();
 	const failedRequests = new Map();
@@ -1051,6 +1139,7 @@ async function runDaemon(id) {
 			pid: process.pid,
 		};
 		writeFileSync(path, JSON.stringify(state), { mode: 0o600 });
+		removePending(config.id);
 		resetIdle();
 	});
 }

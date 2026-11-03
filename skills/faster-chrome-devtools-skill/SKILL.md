@@ -100,7 +100,10 @@ macOS: `open -na "Google Chrome" --args --remote-debugging-port=9333
 
 A background daemon keeps one browser connection alive for 20 minutes after the
 last command. This avoids repeated connection setup and repeated Chrome approval
-prompts. Stop it explicitly when finished:
+prompts. On a local connection the first command waits up to two minutes for the
+user to click Allow, and prints a notice to stderr while it waits; other
+commands started in the meantime reuse that pending connection instead of
+showing a second prompt. Stop it explicitly when finished:
 
 ```sh
 # Stops the daemon when exactly one is running; no browser discovery is needed

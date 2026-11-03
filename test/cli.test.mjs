@@ -68,6 +68,7 @@ let endpoint;
 let stateDirectory;
 const seenMethods = [];
 const seenRequests = [];
+let upgrades = 0;
 
 function runCli(args, overrides = {}) {
 	return execFileAsync(process.execPath, [cli, ...args], {
@@ -85,7 +86,11 @@ function runCli(args, overrides = {}) {
 before(async () => {
 	stateDirectory = mkdtempSync(join(tmpdir(), "faster-cdp-test-"));
 	browserServer = http.createServer();
-	browserServer.on("upgrade", (request, socket) => {
+	browserServer.on("upgrade", async (request, socket) => {
+		upgrades++;
+		// Simulates Chrome holding the upgrade until the user approves.
+		if (request.url.includes("slow-approval"))
+			await new Promise((resolveDelay) => setTimeout(resolveDelay, 2_500));
 		const accept = createHash("sha1")
 			.update(
 				`${request.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`,
@@ -372,6 +377,33 @@ test("--timeout applies per command after the daemon has started", async () => {
 	);
 	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
 	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
+});
+
+test("concurrent calls share one daemon while approval is pending", async () => {
+	const slowEndpoint = endpoint.replace("/mock?", "/slow-approval?");
+	const before = upgrades;
+	const [first, second] = await Promise.all([
+		runCli(["--ws-endpoint", slowEndpoint, "list"]),
+		runCli(["--ws-endpoint", slowEndpoint, "list"]),
+	]);
+	assert.equal(upgrades - before, 1);
+	assert.match(first.stdout, /Mock Browser Page/);
+	assert.match(second.stdout, /Mock Browser Page/);
+	assert.match(first.stderr + second.stderr, /Allow debugging/);
+	const stopped = await runCli(["--ws-endpoint", slowEndpoint, "stop"]);
+	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
+	assert.deepEqual(readdirSync(stateDirectory), []);
+});
+
+test("connection failures report the underlying error", async () => {
+	await assert.rejects(
+		runCli(["--ws-endpoint", "ws://127.0.0.1:1/devtools/browser", "list"]),
+		(error) => {
+			assert.match(error.stderr, /Could not connect to the browser: .*ECONNREFUSED/);
+			return true;
+		},
+	);
+	assert.deepEqual(readdirSync(stateDirectory), []);
 });
 
 test("type reports failure when nothing is focused", async () => {
