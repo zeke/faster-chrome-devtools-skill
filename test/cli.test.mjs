@@ -428,6 +428,21 @@ test("click explains invalid selectors", async () => {
 	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
 });
 
+test("wait-for reports a clean timeout", async () => {
+	await assert.rejects(
+		runCli(["--ws-endpoint", endpoint, "wait-for", "ABCDEF01", "text", "Nope", "50"]),
+		(error) => {
+			assert.equal(
+				error.stderr.trim(),
+				'Error: Timed out after 50ms waiting for text "Nope"',
+			);
+			return true;
+		},
+	);
+	const stopped = await runCli(["--ws-endpoint", endpoint, "stop"]);
+	assert.match(stopped.stdout, /^Stopped [a-f0-9]{16}/);
+});
+
 test("type reports failure when nothing is focused", async () => {
 	await assert.rejects(
 		runCli(["--ws-endpoint", endpoint, "type", "ABCDEF01", "hello"]),

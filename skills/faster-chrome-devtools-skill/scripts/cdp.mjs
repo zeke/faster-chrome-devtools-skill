@@ -530,14 +530,17 @@ async function waitFor(cdp, sid, kind, expected, timeout) {
 		kind === "text"
 			? `document.body?.innerText.includes(${JSON.stringify(expected)})`
 			: `document.querySelector(${JSON.stringify(expected)})`;
-	const expression = `new Promise((resolve, reject) => {
+	const expression = `new Promise((resolve) => {
     const check = () => { if (${condition}) { observer.disconnect(); clearTimeout(timer); resolve(true); } };
     const observer = new MutationObserver(check);
-    const timer = setTimeout(() => { observer.disconnect(); reject(new Error('wait-for timed out')); }, ${timeout});
+    const timer = setTimeout(() => { observer.disconnect(); resolve(false); }, ${timeout});
     observer.observe(document.documentElement, {subtree:true, childList:true, attributes:true, characterData:true});
     check();
   })`;
-	await evaluate(cdp, sid, expression, timeout + 1_000);
+	if ((await evaluate(cdp, sid, expression, timeout + 1_000)) !== "true")
+		throw new Error(
+			`Timed out after ${timeout}ms waiting for ${kind} ${JSON.stringify(expected)}`,
+		);
 	return `Found ${kind} ${JSON.stringify(expected)}`;
 }
 
